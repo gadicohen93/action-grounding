@@ -6,8 +6,10 @@
 model:
   # HuggingFace model ID - must match for generation AND extraction
   id: "mistralai/Mistral-7B-Instruct-v0.2"
-  # Backend: "pytorch" (standard) or "vllm" (faster inference)
-  backend: "pytorch"
+  # Backend: "pytorch" (standard, supports activation extraction) or "vLLM" (2-3x faster inference)
+  # Note: vLLM requires separate installation: pip install vllm (large dependencies ~5GB)
+  # vLLM doesn't support activation extraction - extraction will auto-switch to PyTorch
+  backend: "pytorch"  # Change to "vllm" after installing: pip install vllm
   # Quantization: "none", "4bit", "8bit"
   # Use "8bit" for most GPUs, "none" if you have 40GB+ VRAM
   quantization: "8bit"
@@ -37,8 +39,9 @@ labeling:
 
 experiment:
   # Episodes per condition: 3 variants x 5 pressures x 3 tools = 45 conditions
-  # 50 per condition = 2,250 total episodes
-  n_episodes_per_condition: 50
+  # 10 per condition = 450 total episodes (good for testing)
+  # 50 per condition = 2,250 total episodes (full experiment)
+  n_episodes_per_condition: 10
   # Tool types to test
   tools:
     - "escalate"

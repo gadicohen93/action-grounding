@@ -235,6 +235,7 @@ def extract_activations(
     positions: Optional[list[str]] = None,
     layers: Optional[list[int]] = None,
     model_id: Optional[str] = None,
+    backend_type: Optional[str] = None,
 ) -> list[ActivationSample]:
     """
     Extract activations from a single episode (convenience function).
@@ -244,6 +245,9 @@ def extract_activations(
         positions: Position names (from config if None)
         layers: Layer indices (from config if None)
         model_id: Model to use (from config if None)
+        backend_type: Backend to use ("pytorch" or "vllm"). 
+                     Defaults to config. Use "pytorch" for extraction
+                     (vLLM doesn't support activation extraction).
 
     Returns:
         List of ActivationSample objects
@@ -255,7 +259,20 @@ def extract_activations(
     if layers is None:
         layers = config.extraction.layers
 
-    extractor = ActivationExtractor(model_id=model_id)
+    # Default to pytorch for extraction (vLLM doesn't support it)
+    if backend_type is None:
+        backend_type = config.model.backend
+        if backend_type == "vllm":
+            logger.warning(
+                "Config specifies vLLM backend, but vLLM doesn't support activation extraction. "
+                "Switching to PyTorch backend for extraction."
+            )
+            backend_type = "pytorch"
+
+    extractor = ActivationExtractor(
+        model_id=model_id,
+        backend_type=backend_type,
+    )
 
     try:
         samples = extractor.extract(episode, positions, layers)
@@ -270,24 +287,46 @@ def extract_activations_batch(
     positions: Optional[list[str]] = None,
     layers: Optional[list[int]] = None,
     model_id: Optional[str] = None,
+    backend_type: Optional[str] = None,
     save_path: Optional[str] = None,
     verbose: bool = True,
 ) -> ActivationDataset:
     """
     Extract activations from a batch of episodes (convenience function).
 
+    **Workflow tip:** You can generate episodes with vLLM (fast) and extract
+    activations later with PyTorch. Just pass `backend_type="pytorch"` here.
+
     Args:
         episodes: Episodes to extract from
         positions: Position names (from config if None)
         layers: Layer indices (from config if None)
         model_id: Model to use (from config if None)
+        backend_type: Backend to use ("pytorch" or "vllm").
+                     Defaults to config. Use "pytorch" for extraction
+                     (vLLM doesn't support activation extraction).
         save_path: Optional path to save dataset
         verbose: Show progress bar
 
     Returns:
         ActivationDataset
     """
-    extractor = ActivationExtractor(model_id=model_id)
+    config = get_config()
+
+    # Default to pytorch for extraction (vLLM doesn't support it)
+    if backend_type is None:
+        backend_type = config.model.backend
+        if backend_type == "vllm":
+            logger.warning(
+                "Config specifies vLLM backend, but vLLM doesn't support activation extraction. "
+                "Switching to PyTorch backend for extraction."
+            )
+            backend_type = "pytorch"
+
+    extractor = ActivationExtractor(
+        model_id=model_id,
+        backend_type=backend_type,
+    )
 
     try:
         dataset = extractor.extract_batch(episodes, positions, layers, verbose)

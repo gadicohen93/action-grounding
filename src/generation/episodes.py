@@ -166,6 +166,7 @@ class EpisodeGenerator:
         n_per_condition: int = 1,
         save_path: Optional[str] = None,
         verbose: bool = True,
+        use_batch_labeling: bool = True,
     ) -> list[Episode]:
         """
         Generate a batch of episodes.
@@ -175,18 +176,25 @@ class EpisodeGenerator:
             n_per_condition: Number of episodes per condition
             save_path: Optional path to save episodes (Parquet)
             verbose: Print progress
+            use_batch_labeling: If True, batch OpenAI claim detection calls (much faster)
 
         Returns:
             List of Episode objects
         """
         from tqdm import tqdm
+        from collections import defaultdict
 
         total = len(conditions) * n_per_condition
         episodes = []
 
         if verbose:
             logger.info(f"Generating {total} episodes...")
+            if use_batch_labeling and self.labeling_method == "openai":
+                logger.info("  Using batch claim detection (faster)")
             progress = tqdm(total=total, desc="Generating")
+
+        # Phase 1: Generate all episodes (without claim detection if batching)
+        episode_data = []  # Store (episode_data, tool_type) for batch processing
 
         for condition in conditions:
             # Build scenario object
@@ -208,15 +216,38 @@ class EpisodeGenerator:
 
             for _ in range(n_per_condition):
                 try:
-                    episode = self.generate(scenario, variant, pressure)
-                    episodes.append(episode)
+                    # Build episode config
+                    config = build_episode_config(scenario, variant, pressure)
+
+                    # Generate response
+                    output = self.backend.generate(
+                        prompt=self.backend.format_chat(
+                            config["system_prompt"],
+                            config["user_turns"],
+                        ),
+                        temperature=self.temperature,
+                        max_tokens=self.max_tokens,
+                        top_p=self.top_p,
+                    )
+
+                    # Detect tool usage (fast, regex-based)
+                    from ..labeling.tool_detection import detect_tool_call
+                    tool_call_result = detect_tool_call(
+                        output.text,
+                        tool_type=tool_type,
+                    )
+
+                    # Store for batch claim detection
+                    episode_data.append({
+                        "output_text": output.text,
+                        "tool_type": tool_type,
+                        "tool_call_result": tool_call_result,
+                        "config": config,
+                        "output": output,
+                    })
 
                     if verbose:
                         progress.update(1)
-                        if episode.is_fake():
-                            progress.write(
-                                f"  → FAKE: {episode.scenario}/{episode.system_variant}/{episode.social_pressure}"
-                            )
 
                 except Exception as e:
                     logger.error(f"Failed to generate episode: {e}")
@@ -225,7 +256,103 @@ class EpisodeGenerator:
 
         if verbose:
             progress.close()
+            logger.info(f"\nGenerated {len(episode_data)} responses")
 
+        # Phase 2: Batch claim detection (if enabled and using OpenAI)
+        if use_batch_labeling and self.labeling_method == "openai":
+            if verbose:
+                logger.info("Batch detecting claims...")
+                claim_progress = tqdm(total=len(episode_data), desc="Detecting claims")
+
+            from ..labeling.claim_detection import detect_action_claims_batch
+
+            # Group by tool_type for batch processing
+            by_tool_type = defaultdict(list)
+            indices_by_tool_type = defaultdict(list)
+
+            for idx, data in enumerate(episode_data):
+                tool_type = data["tool_type"]
+                by_tool_type[tool_type].append(data["output_text"])
+                indices_by_tool_type[tool_type].append(idx)
+
+            # Batch detect claims for each tool type
+            claim_results = {}
+            for tool_type, texts in by_tool_type.items():
+                if verbose:
+                    claim_progress.set_description(f"Detecting claims ({tool_type.value})")
+                results = detect_action_claims_batch(
+                    texts=texts,
+                    tool_type=tool_type,
+                    method="openai",
+                )
+                # Map results back to original indices
+                for idx, result in zip(indices_by_tool_type[tool_type], results):
+                    claim_results[idx] = result
+
+            if verbose:
+                claim_progress.close()
+        else:
+            # Sequential claim detection (fallback)
+            claim_results = {}
+            if verbose:
+                claim_progress = tqdm(total=len(episode_data), desc="Detecting claims")
+            from ..labeling.claim_detection import detect_action_claim
+
+            for idx, data in enumerate(episode_data):
+                claim_results[idx] = detect_action_claim(
+                    data["output_text"],
+                    tool_type=data["tool_type"],
+                    method=self.labeling_method,
+                )
+                if verbose:
+                    claim_progress.update(1)
+
+            if verbose:
+                claim_progress.close()
+
+        # Phase 3: Build Episode objects
+        if verbose:
+            logger.info("Building episode objects...")
+
+        for idx, data in enumerate(episode_data):
+            claim_result = claim_results[idx]
+            tool_call_result = data["tool_call_result"]
+            config = data["config"]
+            output = data["output"]
+
+            # Compute category
+            category = Episode.compute_category(
+                tool_used=tool_call_result["tool_used"],
+                claims_action=claim_result["claims_action"],
+            )
+
+            # Map labeling method to Episode's expected format
+            claim_method = "llm" if self.labeling_method == "openai" else self.labeling_method
+
+            episode = Episode(
+                tool_type=ToolType(config["tool_type"]),
+                scenario=config["scenario"],
+                system_variant=SystemVariant(config["system_variant"]),
+                social_pressure=SocialPressure(config["social_pressure"]),
+                system_prompt=config["system_prompt"],
+                user_turns=config["user_turns"],
+                assistant_reply=output.text,
+                tool_used=tool_call_result["tool_used"],
+                claims_action=claim_result["claims_action"],
+                category=category,
+                claim_detection_method=claim_method,
+                claim_detection_confidence=claim_result.get("confidence"),
+                claim_detection_reason=claim_result.get("reason"),
+                model_id=self.model_id,
+                generation_seed=self.seed,
+                num_tokens_generated=output.num_tokens_generated,
+                tool_call_raw=tool_call_result.get("raw_call"),
+                tool_call_args=tool_call_result.get("args"),
+            )
+
+            episodes.append(episode)
+
+        if verbose:
             # Summary stats
             total_generated = len(episodes)
             fake_count = sum(1 for e in episodes if e.is_fake())
@@ -295,6 +422,7 @@ def generate_batch(
     labeling_method: str = "openai",
     save_path: Optional[str] = None,
     verbose: bool = True,
+    use_batch_labeling: bool = True,
 ) -> list[Episode]:
     """
     Generate a batch of episodes (convenience function).
@@ -306,6 +434,7 @@ def generate_batch(
         labeling_method: Claim detection method
         save_path: Optional path to save
         verbose: Print progress
+        use_batch_labeling: If True, batch OpenAI claim detection calls (much faster)
 
     Returns:
         List of Episodes
@@ -321,6 +450,7 @@ def generate_batch(
             n_per_condition,
             save_path,
             verbose,
+            use_batch_labeling=use_batch_labeling,
         )
     finally:
         generator.unload()
