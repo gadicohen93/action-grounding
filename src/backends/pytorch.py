@@ -174,6 +174,7 @@ class PyTorchBackend(ModelBackend):
         top_p: float = 0.9,
         stop_sequences: Optional[list[str]] = None,
         batch_size: int = 8,
+        verbose: bool = True,
     ) -> list[GenerationOutput]:
         """
         Generate text from multiple prompts in batches (much faster than sequential).
@@ -185,15 +186,36 @@ class PyTorchBackend(ModelBackend):
             top_p: Top-p sampling parameter
             stop_sequences: Optional stop sequences
             batch_size: Number of prompts to process at once
+            verbose: Show progress bar
 
         Returns:
             List of GenerationOutput objects
         """
-        results = []
+        from tqdm import tqdm
         
-        # Process in batches
-        for i in range(0, len(prompts), batch_size):
+        import time
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        results = []
+        total_batches = (len(prompts) + batch_size - 1) // batch_size
+        
+        logger.info(f"Starting batch generation: {len(prompts)} prompts in {total_batches} batches (batch_size={batch_size})")
+        start_time = time.time()
+        
+        # Process in batches with progress bar
+        iterator = range(0, len(prompts), batch_size)
+        if verbose:
+            iterator = tqdm(iterator, desc="Generating batches", total=total_batches, unit="batch")
+        
+        for batch_idx, i in enumerate(iterator, 1):
             batch_prompts = prompts[i:i + batch_size]
+            batch_start = time.time()
+            
+            # Log progress more frequently
+            if verbose:
+                if batch_idx <= 5 or batch_idx % 5 == 0:
+                    logger.info(f"Processing batch {batch_idx}/{total_batches} ({batch_idx*100//total_batches}%)")
             
             # Tokenize batch with padding
             inputs = self.tokenizer(
@@ -237,6 +259,18 @@ class PyTorchBackend(ModelBackend):
                     attention_mask=attention_mask,
                     **gen_kwargs,
                 )
+            
+            batch_time = time.time() - batch_start
+            # Log completion more frequently
+            if verbose:
+                if batch_idx <= 5 or batch_idx % 5 == 0:
+                    elapsed = time.time() - start_time
+                    avg_time = elapsed / batch_idx
+                    remaining = avg_time * (total_batches - batch_idx)
+                    logger.info(f"Batch {batch_idx}/{total_batches} completed in {batch_time:.2f}s | "
+                              f"Elapsed: {elapsed/60:.1f}min | "
+                              f"ETA: {remaining/60:.1f}min | "
+                              f"Speed: {batch_size/batch_time:.1f} prompts/s")
 
             # Extract generated portions for each prompt
             for j, prompt in enumerate(batch_prompts):
@@ -259,6 +293,10 @@ class PyTorchBackend(ModelBackend):
                     output_ids=generated_ids,
                     num_tokens_generated=len(generated_ids),
                 ))
+        
+        total_time = time.time() - start_time
+        logger.info(f"Batch generation complete: {len(results)} outputs in {total_time/60:.1f} minutes "
+                   f"({total_time/len(prompts):.2f}s per prompt)")
 
         return results
 

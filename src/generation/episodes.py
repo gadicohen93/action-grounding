@@ -253,6 +253,7 @@ class EpisodeGenerator:
                 temperature=self.temperature,
                 top_p=self.top_p,
                 batch_size=batch_size,
+                verbose=verbose,
             )
         else:
             # Fallback to sequential (for vLLM or other backends)
