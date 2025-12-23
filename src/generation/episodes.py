@@ -193,9 +193,13 @@ class EpisodeGenerator:
                 logger.info("  Using batch claim detection (faster)")
             progress = tqdm(total=total, desc="Generating")
 
-        # Phase 1: Generate all episodes (without claim detection if batching)
+        # Phase 1: Generate all episodes (batched for speed)
         episode_data = []  # Store (episode_data, tool_type) for batch processing
-
+        
+        # Collect all prompts first
+        prompts_to_generate = []
+        prompt_metadata = []  # Store metadata for each prompt
+        
         for condition in conditions:
             # Build scenario object
             from .prompts import get_scenarios_for_tool, ToolType
@@ -219,40 +223,78 @@ class EpisodeGenerator:
                     # Build episode config
                     config = build_episode_config(scenario, variant, pressure)
 
-                    # Generate response
-                    output = self.backend.generate(
-                        prompt=self.backend.format_chat(
-                            config["system_prompt"],
-                            config["user_turns"],
-                        ),
-                        temperature=self.temperature,
-                        max_tokens=self.max_tokens,
-                        top_p=self.top_p,
+                    # Format prompt
+                    prompt = self.backend.format_chat(
+                        config["system_prompt"],
+                        config["user_turns"],
                     )
-
-                    # Detect tool usage (fast, regex-based)
-                    from ..labeling.tool_detection import detect_tool_call
-                    tool_call_result = detect_tool_call(
-                        output.text,
-                        tool_type=tool_type,
-                    )
-
-                    # Store for batch claim detection
-                    episode_data.append({
-                        "output_text": output.text,
-                        "tool_type": tool_type,
-                        "tool_call_result": tool_call_result,
+                    
+                    prompts_to_generate.append(prompt)
+                    prompt_metadata.append({
                         "config": config,
-                        "output": output,
+                        "tool_type": tool_type,
                     })
-
-                    if verbose:
-                        progress.update(1)
-
                 except Exception as e:
-                    logger.error(f"Failed to generate episode: {e}")
+                    logger.error(f"Failed to prepare episode: {e}")
                     if verbose:
                         progress.update(1)
+
+        # Batch generate all prompts (much faster!)
+        if verbose:
+            logger.info(f"Batch generating {len(prompts_to_generate)} prompts...")
+        
+        # Check if backend supports batch generation
+        if hasattr(self.backend, 'generate_batch') and self.backend_type == "pytorch":
+            # Use batch generation for PyTorch (much faster)
+            batch_size = 8  # Adjust based on GPU memory
+            outputs = self.backend.generate_batch(
+                prompts_to_generate,
+                max_tokens=self.max_tokens,
+                temperature=self.temperature,
+                top_p=self.top_p,
+                batch_size=batch_size,
+            )
+        else:
+            # Fallback to sequential (for vLLM or other backends)
+            outputs = []
+            for prompt in prompts_to_generate:
+                output = self.backend.generate(
+                    prompt=prompt,
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens,
+                    top_p=self.top_p,
+                )
+                outputs.append(output)
+
+        # Process outputs
+        for output, metadata in zip(outputs, prompt_metadata):
+            try:
+                config = metadata["config"]
+                tool_type = metadata["tool_type"]
+
+                # Detect tool usage (fast, regex-based)
+                from ..labeling.tool_detection import detect_tool_call
+                tool_call_result = detect_tool_call(
+                    output.text,
+                    tool_type=tool_type,
+                )
+
+                # Store for batch claim detection
+                episode_data.append({
+                    "output_text": output.text,
+                    "tool_type": tool_type,
+                    "tool_call_result": tool_call_result,
+                    "config": config,
+                    "output": output,
+                })
+
+                if verbose:
+                    progress.update(1)
+
+            except Exception as e:
+                logger.error(f"Failed to process episode: {e}")
+                if verbose:
+                    progress.update(1)
 
         if verbose:
             progress.close()

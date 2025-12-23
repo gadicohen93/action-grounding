@@ -166,6 +166,102 @@ class PyTorchBackend(ModelBackend):
             num_tokens_generated=len(generated_ids),
         )
 
+    def generate_batch(
+        self,
+        prompts: list[str],
+        max_tokens: int = 512,
+        temperature: float = 0.7,
+        top_p: float = 0.9,
+        stop_sequences: Optional[list[str]] = None,
+        batch_size: int = 8,
+    ) -> list[GenerationOutput]:
+        """
+        Generate text from multiple prompts in batches (much faster than sequential).
+
+        Args:
+            prompts: List of prompt strings
+            max_tokens: Maximum tokens to generate
+            temperature: Sampling temperature
+            top_p: Top-p sampling parameter
+            stop_sequences: Optional stop sequences
+            batch_size: Number of prompts to process at once
+
+        Returns:
+            List of GenerationOutput objects
+        """
+        results = []
+        
+        # Process in batches
+        for i in range(0, len(prompts), batch_size):
+            batch_prompts = prompts[i:i + batch_size]
+            
+            # Tokenize batch with padding
+            inputs = self.tokenizer(
+                batch_prompts,
+                return_tensors="pt",
+                padding=True,
+                truncation=True,
+                max_length=4096,
+            )
+            input_ids = inputs["input_ids"].to(self.get_device())
+            attention_mask = inputs.get("attention_mask")
+            if attention_mask is not None:
+                attention_mask = attention_mask.to(self.get_device())
+
+            # Set up generation config
+            gen_kwargs = {
+                "max_new_tokens": max_tokens,
+                "do_sample": temperature > 0,
+                "pad_token_id": self.tokenizer.pad_token_id,
+                "eos_token_id": self.tokenizer.eos_token_id,
+            }
+
+            if temperature > 0:
+                gen_kwargs["temperature"] = temperature
+                gen_kwargs["top_p"] = top_p
+
+            # Handle stop sequences
+            if stop_sequences:
+                stop_token_ids = []
+                for seq in stop_sequences:
+                    ids = self.tokenizer.encode(seq, add_special_tokens=False)
+                    if ids:
+                        stop_token_ids.append(ids[0])
+                if stop_token_ids:
+                    gen_kwargs["eos_token_id"] = [self.tokenizer.eos_token_id] + stop_token_ids
+
+            # Generate batch
+            with torch.no_grad():
+                output_ids = self.model.generate(
+                    input_ids,
+                    attention_mask=attention_mask,
+                    **gen_kwargs,
+                )
+
+            # Extract generated portions for each prompt
+            for j, prompt in enumerate(batch_prompts):
+                # Get input length for this prompt
+                input_len = attention_mask[j].sum().item() if attention_mask is not None else input_ids[j].ne(self.tokenizer.pad_token_id).sum().item()
+                
+                # Extract generated portion
+                generated_ids = output_ids[j, input_len:]
+                generated_text = self.tokenizer.decode(generated_ids, skip_special_tokens=True)
+
+                # Strip stop sequences
+                if stop_sequences:
+                    for seq in stop_sequences:
+                        if seq in generated_text:
+                            generated_text = generated_text.split(seq)[0]
+
+                results.append(GenerationOutput(
+                    text=generated_text,
+                    input_ids=input_ids[j],
+                    output_ids=generated_ids,
+                    num_tokens_generated=len(generated_ids),
+                ))
+
+        return results
+
     def get_hidden_states(
         self,
         text: str,

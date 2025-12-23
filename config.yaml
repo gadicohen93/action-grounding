@@ -20,7 +20,7 @@ model:
 
 generation:
   temperature: 0.7
-  max_tokens: 512
+  max_tokens: 256  # Reduced from 512 for faster generation (increase for longer responses)
   top_p: 0.9
   # Fixed seed for reproducibility
   seed: 42
