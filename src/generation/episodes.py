@@ -132,6 +132,10 @@ class EpisodeGenerator:
             claims_action=claim_result["claims_action"],
         )
 
+        # Map labeling method to Episode's expected format
+        # Episode expects "llm" or "regex", but we use "openai" or "regex"
+        claim_method = "llm" if self.labeling_method == "openai" else self.labeling_method
+
         # Build Episode object
         episode = Episode(
             tool_type=ToolType(config["tool_type"]),
@@ -144,7 +148,7 @@ class EpisodeGenerator:
             tool_used=tool_call_result["tool_used"],
             claims_action=claim_result["claims_action"],
             category=category,
-            claim_detection_method=self.labeling_method,
+            claim_detection_method=claim_method,
             claim_detection_confidence=claim_result.get("confidence"),
             claim_detection_reason=claim_result.get("reason"),
             model_id=self.model_id,
