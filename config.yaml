@@ -9,7 +9,7 @@ model:
   # Backend: "pytorch" (standard, supports activation extraction) or "vLLM" (2-3x faster inference)
   # Note: vLLM requires separate installation: pip install vllm (large dependencies ~5GB)
   # vLLM doesn't support activation extraction - extraction will auto-switch to PyTorch
-  backend: "pytorch"  # Change to "vllm" after installing: pip install vllm
+  backend: "vllm"  # Much faster! Install with: pip install --no-cache-dir vllm
   # Quantization: "none", "4bit", "8bit"
   # Use "8bit" for most GPUs, "none" if you have 40GB+ VRAM
   quantization: "8bit"

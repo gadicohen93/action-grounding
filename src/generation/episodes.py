@@ -246,7 +246,10 @@ class EpisodeGenerator:
         # Check if backend supports batch generation
         if hasattr(self.backend, 'generate_batch') and self.backend_type == "pytorch":
             # Use batch generation for PyTorch (much faster)
-            batch_size = 8  # Adjust based on GPU memory
+            # With A40 (46GB VRAM), we can use much larger batches
+            # Current usage ~11GB, so we have ~35GB free
+            batch_size = 32  # Increased from 8 for better GPU utilization
+            logger.info(f"Using batch_size={batch_size} for generation")
             outputs = self.backend.generate_batch(
                 prompts_to_generate,
                 max_tokens=self.max_tokens,
