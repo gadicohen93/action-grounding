@@ -1,0 +1,113 @@
+﻿FAQ (Extended)
+● What’s MATS?
+● What should I expect from the exploration phase?
+● What’s changed from MATS 9.0?
+● What’s changed from MATS 8.0?
+● What work have past scholars done?
+● What should I do if I want to do mech interp research but am not accepted to the program?
+● If I get accepted to your program, is it a big deal if I start and then withdraw?
+● Will there be a summer 2026 cohort?
+● Is it possible to do the research phase remotely?
+● There’s a long gap between the training and research phase, can I do research in the gap?
+● Can I do the exploration phase if I have a full-time job?
+● Who owns the intellectual property?
+FAQ (Extended)
+* What’s MATS?
+   * In brief, it’s a program that helps alignment researchers mentor junior researchers without needing to run their own mentoring program. See the MATS website for more information on the program as a whole. Other 10.0 mentors open soon
+   * Each mentor has a lot of control over their stream and different streams will have very different experiences, I recommend thinking of it as many different small mentorship programs rather than one big one. 
+      1. (In particular, most applications are much quicker than mine and I’m the only one with an exploration phase)
+   * You're encouraged to apply for as many mentors as you want to. You'll receive all of your offers for the research phase at the same time and can choose between them then.
+* What should I expect from the exploration phase?
+   * Structure: 3 week preparation phase: Feb 2 - Feb 20 and 2 week research sprint: Feb 23 - March 6
+   * Warning: The exploration phase is not a structured course. I am not going to be telling you what to do. I view my role as a facilitator - I try to provide advice, good opportunities and resources, and help you all collaborate and learn from each other. 
+      1. But realistically, I'm largely running this on my own, there's over 30 of you, I can't really do one-on-one time. 
+      2. Past scholars often comment that they are surprised by how unstructured and self-driven it was even, after receiving warnings like this.
+   * Preparation phase: 
+      1. Three weeks of education + skilling up, along the lines of this post. 
+      2. The main things scholars spend their time on are self-driven learning, like doing coding tutorials and reading papers, and doing mini-projects, 0.5 to 5 day long research projects on their own or with a partner, And then, essentially, as warm-ups to the sprint.
+      3. There will be weekly group check-in calls, self-organised pair programming and collaboration, and you’ll be able to ask each other and me questions over Slack
+      4. This is part-time, but some scholars choose to do it full-time. You will not be evaluated on the amount of time spent here, but I expect it to be an advantage in the sprint.
+   * Example exploration phase content - see last time’s schedule:
+      1. Talks, like my talk series on the big picture of mech interp and key research areas, or from authors of key papers, or on topics like how nnsight works (a popular mech interp library)
+      2. I do live research on a small mech interp problem while vibe coding and narrating my thought process
+      3. I live write the list of sprint problems and narrate my thought process for how I’m breaking down the space, why I think a problem is interesting, how I’d approach it, etc
+      4. Socials with other participants
+         * Both remote, and in-person if there’s enough people in the same place! We’ve had London, NYC, Cambridge (US) and more before
+      5. Note: There’s just one of me and 30+ of you! Unfortunately, this means I don’t have capacity for 1-1s and mostly run group events.
+   * A two week full-time research sprint, where you pick an open problem and try to make progress on it. 
+      1. I’ll mostly judge acceptance to the research phase based on your research sprint output
+      2. You’ll do this in a team of two with another scholar (of your choice), though solo projects are possible.
+      3. Each team will give me a presentation at the end of the sprint, and I evaluate who to accept to the research phase. 
+         * You can request feedback on the project at the end of the presentation.
+* What’s changed from MATS 9.0?
+   * Not much, the application process is largely unchanged
+* What’s changed from MATS 8.0?
+* I've increased the time limits a bit (now max 20 hours, +2 for executive summary). 
+* I've shifted even more away from sparse autoencoder-related projects, and I'm comparatively more excited than I was about model biology and applied interpretability projects - details here
+* There's been a bunch of progress in reasoning model interpretability, and I have a bunch more ideas for projects there. 
+* Arthur Conmy will not be helping run the exploration phase. But he will have MATS scholars and I may refer scholars who don’t make it to the research phase to him and other mentors
+* In MATS 8.0, I experimented with encouraging scholars to do mini-projects, basically tiny research sprints, in the first three weeks (on their own or with pairs). This went extremely well and is now a core part of the program.
+* LLMs have gotten substantially better over the last six months, and I give a bunch more detailed advice on the best ways to use them.
+* What work have past scholars done? 
+   * Past scholar papers[1]: 
+      1. Do I Know This Entity? Knowledge Awareness and Hallucinations in Language Models (Javier Ferrando, Oscar Obeso, Senthooran Rajamanoharan, Neel Nanda, ICLR 2025 (Oral))
+      2. Inference-Time Decomposition of Activations (ITDA): A Scalable Approach to Interpreting Large Language Models (Patrick Leask, ICML 2025)
+      3. Scaling sparse feature circuit finding for in-context learning (Dmitrii Kharlapenko, Stepan Shabalin, ICML 2025)
+      4. Learning Multi-Level Features with Matryoshka Sparse Autoencoders (Bart Bussmann, Noa Nabeshima, ICML 2025)
+      5. SAEBench: A Comprehensive Benchmark for Sparse Autoencoders in Language Model Interpretability (Adam Karvonen, Can Rager ICML 2025)
+      6. Are Sparse Autoencoders Useful? A Case Study in Sparse Probing (Subhash Kantamneni, Joshua Engels, ICML 2025)
+      7. Sparse Autoencoders Do Not Find Canonical Units of Analysis (Patrick Leask, Bart Bussmann, ICLR 2025)
+      8. Towards Principled Evaluations of Sparse Autoencoders for Interpretability and Control (Aleksandar Makelov, George Lange ICLR 2025)
+      9. Confidence Regulation Neurons in Language Models (Alessandro Stolfo, Ben Wu, NeurIPS 2024)
+      10. Transcoders Find Interpretable LLM Feature Circuits (Jacob Dunefsky, Philippe Chlenski, NeurIPS 2024)
+      11. Refusal in Language Models Is Mediated by a Single Direction (Andy Arditi, Oscar Obeso, Aaquib Syed, NeurIPS 2024)
+      12. Explorations of Self-Repair in Language Models (Cody Rushing, ICML 2024)
+      13. Is This the Subspace You Are Looking for? An Interpretability Illusion for Subspace Activation Patching (Aleksandar Makelov, Georg Lange, ICLR 2024)
+      14. A Toy Model of Universality: Reverse Engineering How Networks Learn Group Operations (Bilal Chughtai, ICML)
+      15. Finding Neurons in a Haystack: Case Studies with Sparse Probing (Wes Gurnee, TMLR)
+      16. Interpreting Attention Layer Outputs with Sparse Autoencoders (Connor Kissane, Robert Krzyzanowski, Spotlight, Mechanistic Interpretability Workshop at ICML 2024)
+      17. Linear Representations of Sentiment in Large Language Models (Curt Tigges, Oskar Hollinsworth, BlackboxNLP)
+      18. Copy Suppression: Comprehensively Understanding an Attention Head (Callum McDougall, Arthur Conmy, Cody Rushing, BlackboxNLP)
+      19. Training Dynamics of Contextual N-Grams in Language Models (Lucia Quirke, Lovis Heindrich)
+      20. Thought Anchors: Which LLM Reasoning Steps Matter? (Paul C. Bogdan, Uzay Macar)
+      21. Understanding Reasoning in Thinking Language Models via Steering Vectors (Constantin Venhoff, Iván Arcuschin)
+      22. How Visual Representations Map to Language Feature Space in Multimodal LLMs (Constantin Venhoff, Ashkan Khakzar)
+      23. Convergent Linear Representations of Emergent Misalignment (Anna Soligo, Edward Turner)
+      24. Model Organisms for Emergent Misalignment (Edward Turner, Anna Soligo)
+      25. Towards eliciting latent knowledge from LLMs with mechanistic interpretability (Bartosz Cywiński, Emil Ryd)
+      26. Overcoming Sparsity Artifacts in Crosscoders to Interpret Chat-Tuning (Julian Minder, Clément Dumas)
+      27. BatchTopK Sparse Autoencoders (Bart Bussmann, Patrick Leask)
+      28. Evaluating Sparse Autoencoders on Targeted Concept Erasure Tasks (Adam Karvonen, Can Rager)
+   * Papers I helped exploration-phase only scholars with:
+      1. Internal states before wait modulate reasoning patterns (Dmitrii Troitskii, Koyena Pal - published at EMNLP)
+      2. Towards eliciting latent knowledge from LLMs with mechanistic interpretability (Bartosz Cywiński, Emil Ryd)
+      3. Simple Mechanistic Explanations for Out-Of-Context Reasoning (Atticus Wang, Oliver Clive-Griffin)
+      4. Reasoning-Finetuning Repurposes Latent Representations in Base Models (Jake Ward, Chuqiao Lin)
+      5. RelP: Faithful and Efficient Circuit Discovery in Language Models via Relevance Patching (Farnoush Rezaei Jafari)
+* Why aren’t you giving many examples from MATS 9.0?
+   * MATS 10.0 is starting earlier in the cycle than MATS 9.0, so the MATS 9.0 exploration phase ended in early Nov and the research phase runs from Jan to March 2026, so I don’t have much data yet!
+* What should I do if I want to do mech interp research but am not accepted to the program?
+   * Sorry about that! There’s a lot more good people who want to do mech interp research than I have capacity to mentor. The advice for how to do a good application project is the same advice I’d give for doing your first mech interp project in general.
+* If I get accepted to your program, is it a big deal if I start and then withdraw?
+   * This is fine by me! In the past, about 1 in 6 people doing the training program have withdrawn for various personal reasons. This is fine from my perspective, if in doubt, please apply and just include a note in your application.
+   * The point of the exploration phase is to be useful and educational to scholars, not adding value to me - if it’s not helpful to you, or a better option comes up, please withdraw! I want you to make the best decision for you.
+   * The main constraint is that acceptance to the research phase is based on your pair during the research sprint, so if you withdraw after the start of sprint it may disadvantage your partner
+* Will there be a summer 2026 cohort?
+   * I can’t say for sure, but I plan to do one.
+* Is it possible to do the research phase remotely?
+   * Yes, this is not recommended (a lot of the value comes from being in Berkeley, having an in-person cohort, learning from each other, networking, etc, and it’ll be harder to work with your partner if remote) but if you strongly prefer to be remote this is fine, and won’t affect your chances of making the research phase. 
+   * There may be the option of doing the research phase in London
+* There’s a long gap between the training and research phase, can I do research in the gap?
+   * If accepted to the research phase, you have absolutely no obligation to do research in the gap. But if you’re really excited after the exploration phase, don’t have other obligations, and want to start working on the research phase project during the gap, I’m excited to work together!
+   * The MATS program will not have officially started, so you will be remote. I expect to be able to get you a grant for living expenses and compute.
+* Can I do the exploration phase if I have a full-time job?
+   * This is fine by me, and participants have done it before, but it’s going to be harder for you
+      1. You’ll need to do the research sprint full-time, but some people have taken leave for it
+      2. The first 3 weeks for the preparation phase are “work whatever hours you want”, so you’re welcome to just do what you can in evenings and weekends.
+   * Obviously, this is a pretty intense schedule, will put you at a disadvantage, and will not work with all employers. Sorry!
+   * The research phase is full-time, and cannot be done part-time/on the side. Previous participants who had full-time jobs either took extended unpaid leave, or quit.
+* Who owns the intellectual property?
+   * Scholars own the IP of their work, not me or MATS. 
+   * Scholars are strongly encouraged to publish and open source their work, under a permissive license
+________________
+[1] Note that some papers required a 1-2 month extension on the program to properly finish off, and some of these papers were done in the extension as a second project

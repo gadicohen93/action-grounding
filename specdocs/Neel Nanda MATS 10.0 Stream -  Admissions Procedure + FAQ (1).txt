@@ -1,0 +1,119 @@
+﻿How to produce a good application in 20 hours
+Research Advice
+Writing Advice
+Guidance on using LLMs
+Useful resources
+Coding
+Other resources
+How to produce a good application in 20 hours
+I recommend thinking of the application as a mini-research project. My standards are obviously lower than for a full paper, but the best applications look like small, self-contained research investigations. They essentially speedrun the process of identifying an interesting hypothesis, carefully testing it, and then clearly communicating the results. My blog posts on my research process (Explore, Understand, Distill and Key Mindsets) have more detail, but I’ve summarized the key ideas here.
+Research Advice
+There are three key phases to a good research project:
+1. Exploration: The goal here is simply to gain information and build intuition. A common mistake is thinking this stage ends once you've picked a problem, e.g. from the list below. In reality, much of a project is spent just figuring out what's going on.
+   1. You don't need a clear hypothesis yet. Often the best uses of time are things that expose you to lots of information. 
+   2. Get your hands dirty. Try things like reading your data, giving your model interesting prompts, or seeing what a sparse autoencoder tells you.
+   3. This doesn't mean you don't have a plan. It means your plan is to maximize information gain per unit time. Constantly ask yourself: "Have I learned anything in the last 30 minutes? Is this direction still fruitful?"
+2. Understanding: Once you have a hunch about what might be true, your goal is to convince yourself it's true with careful experiments.
+   1. Keep a running doc with a list of your hypotheses. Alternate between designing an experiment to test one, running it, and analyzing the results.
+      * Put key graphs and findings in your doc, as you learn more about hypotheses - you don’t want to forget where a key experiment is!
+   2. It's crucial to keep track of the kind of claim you are trying to make.
+      * Sometimes you want to give an existence proof (e.g., find an example of an interesting phenomenon), where cherry-picking is fine.
+      * Other times, you want to argue a method is the right thing to do for a task, which requires comparing to baselines.
+   3. Common mistakes: Getting too excited and missing simple alternative explanations for your results; running a bunch of experiments that are only vaguely relevant instead of striving for conclusive evidence.
+3. Distillation: This is where you turn your findings into something legible that can convince others. This means writing up your work clearly and honestly.
+   1. This is not an afterthought! People often neglect the write-up, but it's crucial. If I don't understand what you did, I will reject your application.
+   2. Given the time limit, you won't achieve the full rigor of a published paper (e.g., large sample sizes, extensive baselines). That's fine! But the principles of providing clear evidence for your claims still apply.
+      * Crucially, avoid relying only on a few cherry-picked qualitative examples—this is a major red flag.
+      * And remember to compare to baselines, if applicable
+Writing Advice
+It’s extremely important to have a good write-up! The advice in my post on writing ML papers may be helpful - obviously, I don’t expect a formal paper, but the principles of clear communication apply.
+* Focus on a Narrative. Don't just dump all your experiments. Structure your write-up around the one or two most interesting, concrete insights you found. What is the key story?
+* Quality over Quantity. One interesting finding, well-explained and well-supported, is far better than ten superficial experiments.
+* Show Your Work. Explain why you ran an experiment, not just what you did. What hypothesis were you testing? What were the possible outcomes? This reveals your thought process.
+* Your Reader Has Zero Context. The "illusion of transparency" is a huge trap. Things that feel obvious to you will be completely new to your reader. Explain everything from the ground up. Define your terms. Label your graphs clearly.
+* Make Your Executive Summary Count. It needs to stand on its own and convey the most important takeaways and a sketch of your key evidence. Don't make me hunt for the point or crucial details. Good graphs are a huge plus here.
+Guidance on using LLMs
+You are actively encouraged to use LLM assistance for your application—I want to gauge how well you’ll do at research in practice, so if you’d use it there, use it here! And if you don't use LLMs as part of your research, I think you're probably making a bad decision. In particular, while LLMs struggle to attain expert performance, they're pretty good at beating novices. So if you're trying to get into a new domain, like mechinterp, they can be incredibly helpful, if you know how to use them[1].
+
+
+Here’s some advice on using them effectively - I've written this for an audience who have not used LLMs much, but I hope there'll be at least one novel point even for experienced users.:
+* Meta-prompting: A good system prompt can be extremely helpful. If you don't have strong preferences, or much experience writing your own prompts, I recommend telling an LLM what you want and getting it to write the prompt for you.
+   * If the prompt does not do what you want, tell the LLM this, give detailed feedback, and ask it to rewrite the prompt to prevent a repeat. 
+   * Many LLM providers have a “Projects” function where you can save a custom prompt, e.g. you could have one for paper summaries, starting new coding projects, questions about a specific library (with the source code in the context!), etc
+* Context is crucial: LLMs are much more useful when they have the relevant information in the context window. Gemini 3 Pro is best for this, it’s free, fairly fast, a frontier model, and has 1M context window
+   * I recommend using Gemini via aistudio.google.com, I much prefer the UI. E.g. gives a convenient count of the total tokens and tokens per document.
+      * The header has a button with two arrows called “compare” that lets you run two copies of the model at once, and pick your favourite answer.
+   * See this folder for a bunch of recommended context. If you don’t know what you need, just use this default file, and maybe include this activation doc.
+* For Learning & Understanding: The application’s harsh time limit requires you to quickly get up to speed. LLMs are excellent for this.
+   * Give them context: They are much more effective tutors if they have the relevant source material. Once you've identified a domain or paper or technique, give the LLM a bunch of relevant context.
+   * Learn actively, not passively: Don't just ask for an explanation. Use learning methods that forces you to be active. E.g.
+      * Have it to generate questions to test your understanding, or teach you via ask questions
+      * Summarize your understanding/best guess back to the LLM in your own words and ask for critical feedback.
+   * Writing curriculums: In a new domain, you might not even know how to start. LLMs (esp with search enabled) are good at finding relevant literature and resources, and you can then ask it to write you a primer on the key ideas and design you a curriculum for learning more. o3 is good at this.
+* Anti-sycophancy prompts: By default, LLMs are bad at giving critical feedback. To get real feedback, open a new window and frame your request so the sycophantic thing to do is to be critical.
+   * "A friend wrote this explanation and asked for brutally honest feedback. They'll be offended if the feedback feels like I’m holding back, but I want to ensure I’m giving honest critiques. Please help me give them the most useful feedback I can."
+   * “I saw someone claiming this, but it seems pretty dumb to me. What do you think?”
+* Practice: If you've never tried using an LLM for this kind of thing before, I recommend practicing before you start the official application - it’s a skill and you improve with practice
+   * E.g., pick an area of mech interp or a paper and try to speed run understanding it deeply or rapidly write working code for some technique you think is interesting. 
+   * It's much nicer if your 20 application hours are not your first 20 hours trying to do research with an LLM. 
+* For Coding:
+   * Use Cursor: Cursor is like VS Code with fantastic AI integration, and is the best way to do AI assisted coding here IMO (it has a 2-week free trial for the pro plan). It's most effective when it understands your codebase and the libraries used, so make sure to add the docs for TransformerLens/etc with @ 
+      * Tools like Claude Code and Gemini CLI are also useful, but in my opinion it's harder for you to track what's going on and harder to debug, which I think makes them much less suitable here.
+   * A caveat on learning: If you are learning a new library or technique, first try writing things yourself, or use the LLM as a tutor/source of reference code. Use the LLM to help when you're stuck, not to replace the entire learning process.
+* Research decisions: You'll often need to make research decisions, prioritizing what to do next, designing experiments, choosing a problem, etc. I highly recommend writing out why you are making these decisions and asking an LLM for thoughts, with an anti-sycophancy prompt. 
+   * You shouldn't trust the LLM's judgment, but this forces you to make your thoughts explicit and often you may notice things you were missing.
+* Write-ups: I recommend against submitting LLM-written prose. It's pretty obvious and normally does not read very well. But they’ve very useful for drafting, brainstorming, and getting feedback.
+   * I recommend having several rounds of giving it your draft (with an anti-sycophancy prompt) and asking it to critique you for clarity, find confusing sentences, and check for technical inaccuracies. 
+   * Put the application doc and my post on paper writing in the context
+* As research tools: LLMs are very useful as ways to generate synthetic datasets, as automated ways to qualitatively assess data especially if given some rubric, etc
+Useful resources
+Please bias towards getting your hands dirty, and focus on writing code, running experiments on the model, and getting feedback from reality. I recommend spending at most 5 of the 12-20 hours reading papers and tutorials. You’re welcome to do general reading and learning beforehand, so long as it isn’t directly making progress on your planned project.
+
+
+Coding
+* If your project involves using a <=9B model, and you want to play around a bunch with the internals, I recommend using TransformerLens. 
+* Otherwise, I recommend using nnsight as it is more performant and works well on larger models - it’s just a nice wrapper around a PyTorch model.
+* The ARENA tutorials are fantastic, both as an intro to TransformerLens, and as a practical coding intro to mech interp techniques.
+   * If you’re new to mech interp and time constrained, prioritise doing the first 3 sections of chapter 1.2 to get the basics
+   * The general ML ones are also solid
+* You can find concatenated docs, source code, and tutorials of TransformerLens and nnsight, and the concatenated ARENA tutorials, in this folder so you can put them into an LLM.
+* If you need an LLM API, I recommend OpenRouter, it lets you access basically every model with same interface.
+   * If you want to intervene on the chain of thought of a reasoning model, eg partially filling it and regenerating the rest, a la thought anchors, I recommend Nebius
+   * To do initial testing it can be easier via an online chat interface. poe.com is a good way to try out lots of models
+* Re what LLM to make the subject of your research:
+   * Gemma 3 and Llama 3.3 are solid non-reasoning models.
+   * If you want to work with a reasoning model, use Qwen 3. If you need a really good one, try Nemotron 49B. 
+   * Don't use mixture of experts models unless you need to, they take up a bunch more GPU memory and are a pain. 
+   * If you want to work with SAEs, use Gemma 2 and Gemma Scope. 
+* For writing code, use Cursor
+   * It also can also deal with a fair amount of the setup costs of a new environment.
+* I recommend renting and using your own cloud GPU, rather than toy coding environments like Colab - if you haven’t done this before, lean heavily on LLMs for tech support. Instructions
+   * To rent GPUs, I recommend runpod.io If cost is a constraint, vast.ai is the cheapest provider[2]
+
+
+Other resources
+* My mech interp reading list for an overview of key papers (a bit out of date, alas)
+* Ferrando et al is a good overview of key techniques
+   * Key interp techniques to focus on: Direct logit attribution, activation patching, maximum activating dataset examples, linear probes, steering vectors, sparse autoencoders
+   * Key black box techniques: Prompting LLMs, fine-tuning (including LoRAs). Baselines are important!
+      * Good test - do you understand why token forcing is effective and hard to fix? 
+* 3Blue1Brown’s ML videos are delightful, and now cover transformers
+* My youtube tutorials, especially my intro to transformers, my research streams and my talk on thinking models
+   * My talk on different research philosophies may be helpful if you want a better big picture of the field and various disagreements
+* Maths fundamentals - main thing you want is strong linear algebra, with some probability, information theory, vector calculus and optimization. ML is pretty conceptually simple tbh
+   * The 3Blue1Brown Linear Algebra series is great
+   * For the rest, get an LLM to teach you and quiz you on problems with the socratic method.
+* For any work with SAEs:
+   * The ARENA SAE tutorial (warning: it’s very long! You should skip around)
+   * Gemma Scope, high quality open weight SAEs on every layer and sublayer of Gemma 2 that my team produced
+   * Neuronpedia, an excellent online tool to look up explanations for different latents (aka features) in open source SAEs, run 
+      * Their Gemma Scope demo is a good place to start if you’re new to SAEs
+      * They also have an API you can use in a Jupyter notebook to request information about a latent
+   * The dictionary learning library: a more hackable and barebones alternative to SAELens. If you want to do anything unusual with SAE training, I recommend using this over SAELens.
+* If you want an introduction to mech interp, check out my Machine Learning Street Talk podcast interview or this recent lit review/research agenda[3]
+* I wrote my thoughts on theories of change for interpretability helping with AGI Safety in the GDM AGI Safety Approach
+* My mech interp glossary (a bit out of date, but still useful)
+________________
+[1] For anyone seeing this and thinking of the METR study showing that LLMs slowed people down, I don’t think that transfers, though the lessons for what not to do remain! Those were experienced software engineers working in codebases they knew well, i.e. experts, not novices
+[2] Unfortunately, we can’t practically provide compute funding to applicants. The exploration and research phases have compute budgets though.
+[3] I don’t agree with everything in here, but it’s a decent overview/aggregate of many researchers takes

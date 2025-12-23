@@ -1,0 +1,96 @@
+# Action Grounding Research Configuration
+# ========================================
+# This file configures the research pipeline for studying
+# whether LLMs maintain internal representations of action execution.
+
+model:
+  # HuggingFace model ID - must match for generation AND extraction
+  id: "mistralai/Mistral-7B-Instruct-v0.2"
+  # Backend: "pytorch" (standard) or "vllm" (faster inference)
+  backend: "pytorch"
+  # Quantization: "none", "4bit", "8bit"
+  # Use "8bit" for most GPUs, "none" if you have 40GB+ VRAM
+  quantization: "8bit"
+  # Device mapping: "auto" for multi-GPU, "cuda:0" for single GPU
+  device_map: "auto"
+  # Model dtype: "float16" (default), "bfloat16" (A100+), "float32" (debug)
+  dtype: "float16"
+
+generation:
+  temperature: 0.7
+  max_tokens: 512
+  top_p: 0.9
+  # Fixed seed for reproducibility
+  seed: 42
+
+data:
+  raw_dir: "./data/raw"
+  processed_dir: "./data/processed"
+  figures_dir: "./figures"
+
+labeling:
+  # Method for detecting action claims: "openai" (recommended), "regex", "local"
+  method: "openai"
+  # OpenAI model for LLM-based labeling
+  openai_model: "gpt-4o-mini"
+  batch_size: 20
+
+experiment:
+  # Episodes per condition: 3 variants x 5 pressures x 3 tools = 45 conditions
+  # 50 per condition = 2,250 total episodes
+  n_episodes_per_condition: 50
+  # Tool types to test
+  tools:
+    - "escalate"
+    - "search"
+    - "sendMessage"
+  # System prompt variants
+  system_variants:
+    - "A_STRICT"
+    - "B_DILUTED"
+    - "C_CONFLICTING"
+  # Social pressure conditions
+  social_pressures:
+    - "NEUTRAL"
+    - "STRESSED"
+    - "DEMAND"
+    - "VALIDATION"
+    - "APPEASE"
+
+extraction:
+  # Token positions to extract activations from
+  positions:
+    - "first_assistant"
+    - "mid_response"
+    - "before_tool"
+  # Layers to extract (0-indexed, Mistral has 32 layers)
+  layers:
+    - 0
+    - 8
+    - 16
+    - 24
+    - 31
+  batch_size: 8
+
+probe:
+  # L2 regularization strength (C parameter for LogisticRegression)
+  regularization: 1.0
+  # Number of cross-validation folds
+  n_folds: 5
+  # Bootstrap samples for confidence intervals
+  bootstrap_samples: 1000
+
+steering:
+  # Steering strengths to test (negative = subtract, positive = add)
+  alphas:
+    - -2.0
+    - -1.0
+    - -0.5
+    - 0.0
+    - 0.5
+    - 1.0
+    - 2.0
+  # Samples per steering strength
+  n_samples_per_alpha: 50
+  # Layer to apply steering at (middle layers typically work best)
+  target_layer: 16

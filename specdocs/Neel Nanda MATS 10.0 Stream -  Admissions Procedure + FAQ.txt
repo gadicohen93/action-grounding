@@ -1,0 +1,46 @@
+﻿Application Format
+Executive Summary Format
+Can I submit mech interp research I’ve already done?
+Defining the 20+2 hour time limit
+Application Format
+Format: An application should consist of a google doc summarising your key findings which begins with an executive summary and ideally contains a bunch of graphs, and enough detail to follow what you did without needing to read your code. You’re encouraged to include code, but it’s not required, and I’ll only read it as necessary to understand the write-up better. Remember to let anyone with the link access the doc! 
+Executive Summary Format
+The first 1-3 pages of the google doc should be an executive summary, which gives the broad strokes of what you did and what you learned. Something at ~1 page (including graphs) is great, max 3 pages and max 600 words. Please include graphs! Bullet points can work well
+
+
+I will try to read the executive summary of every application, but won’t have capacity to read every application properly, so please make sure it conveys the key info! You roughly want to convey the high-level takeaways/what you think is most interesting about what you’ve found, and a sketch of what key experiments you ran to validate it.
+
+
+One good format is to have sections for:
+* What problem am I trying to solve? (and a bit on why you think it’s interesting)
+   * Remember - what you write is always far clearer to yourself than to the reader! Though you can assume it will be read by someone with mech interp research experience
+* What are your high-level takeaways? What were the most interesting parts of your project?
+* One paragraph and graph per key experiment, giving the gist of what it was, what you found, and why this supports your key takeaways
+Can I submit mech interp research I’ve already done? 
+* If you’ve previously done mech interp research (a (co-)first author[1] paper or non-first author but significant contribution paper or high-effort blog post), I’m open to you writing an executive summary for that work, and linking to it, rather than doing the normal application. 
+   * Please include an estimate of how many hours the project took you
+   * If other people worked on it with you, please include a description of what you specifically contributed
+   * If it’s not obviously a mech interp paper then please explain why you think it shows you have relevant skills. 
+* I’d prefer a standard application, and I’ll judge these more harshly than normal applications (you likely had much more time), but if you otherwise won’t have time to apply I’d prefer to get these! 
+   * If you won’t even have time to write an executive summary, I’d still rather get your application than nothing, but have an extremely high bar for those.
+* If the previous work was done on your own and in <=20 hours, but not for the application, this is obviously fine, and you can just treat it as a normal application project.
+Defining the 20+2 hour time limit
+* Not counted:
+   * General prep (paper reading, tutorials), that you would have done before deciding on a project
+      * My fairness principle here is “anything you could reasonably have done to learn mech interp on your own, before thinking of a problem to work on, is totally fine, because more experienced applicants could have done that already”
+   * Generic tech set up, like renting and setting up a cloud GPU, that you’d need to do for most projects
+   * Breaks
+   * Time spent waiting for things to train (assuming you’re doing something else during this time, eg training an SAE overnight)
+   * Writing your answers to the MATS application form
+* I consider any time you spend actively working towards the project goals to be within the 20 hour time limit. This includes (but is not limited to):
+   * Writing code for your project
+   * Reading papers (chosen because they’re relevant to your project)
+   * Analysing data/experimental results
+   * Thinking and planning time
+   * Writing up the google doc
+* So the executive summary doesn’t get super rushed, you can take another 2 hours for it.
+   * I ask that you don’t edit the rest of the write-up, and don’t write any new experiment code, though you’re welcome to write code to make new graphs/visualisations from data you already have, if it’ll help present the results better
+* You’re encouraged to track your time with a tool like Toggl and include a screenshot with the application doc
+* If you decide your project is doomed, you’re welcome to give up and start a new one, and reset the timer
+________________
+[1] If you’re not a first author but made meaningful research contributions, please outline what they were in your application
