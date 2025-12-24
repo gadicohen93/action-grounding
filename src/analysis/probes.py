@@ -188,7 +188,7 @@ def evaluate_probe(
 
 def train_and_evaluate(
     dataset: ActivationDataset,
-    label_type: Literal["reality", "narrative"] = "reality",
+    label_type: Literal["reality", "reality_any", "narrative"] = "reality",
     test_size: float = 0.2,
     random_state: int = 42,
 ) -> tuple[LogisticRegression, ProbeMetrics, ProbeMetrics]:
@@ -197,7 +197,7 @@ def train_and_evaluate(
 
     Args:
         dataset: ActivationDataset
-        label_type: "reality" (tool_used) or "narrative" (claims_action)
+        label_type: "reality" (tool_used), "reality_any" (tool_used_any), or "narrative" (claims_action)
         test_size: Fraction for test set
         random_state: Random seed
 
@@ -306,7 +306,7 @@ def analyze_probe_on_category(
     probe: LogisticRegression,
     dataset: ActivationDataset,
     category: str,
-    label_type: Literal["reality", "narrative"] = "reality",
+    label_type: Literal["reality", "reality_any", "narrative"] = "reality",
 ) -> dict:
     """
     Analyze probe performance on a specific category.
@@ -317,7 +317,7 @@ def analyze_probe_on_category(
         probe: Trained probe
         dataset: Full dataset
         category: Category to analyze (e.g., "fake_action")
-        label_type: "reality" or "narrative"
+        label_type: "reality", "reality_any", or "narrative"
 
     Returns:
         Dict with metrics and predictions
@@ -333,10 +333,12 @@ def analyze_probe_on_category(
             return {}
 
         X = dataset.activations[mask]
-        y = np.array([
-            s.tool_used if label_type == "reality" else s.claims_action
-            for s in dataset.samples
-        ])[mask]
+        if label_type == "reality":
+            y = np.array([s.tool_used for s in dataset.samples])[mask]
+        elif label_type == "reality_any":
+            y = np.array([s.tool_used_any for s in dataset.samples])[mask]
+        else:  # narrative
+            y = np.array([s.claims_action for s in dataset.samples])[mask]
     else:
         X, y = category_dataset.to_sklearn_format(label_type)
 

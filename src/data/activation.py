@@ -124,7 +124,7 @@ class ActivationDataset(BaseModel):
         Convert to sklearn-compatible format.
 
         Args:
-            label_type: "reality" (tool_used) or "narrative" (claims_action)
+            label_type: "reality" (tool_used), "reality_any" (tool_used_any), or "narrative" (claims_action)
 
         Returns:
             X: Activation matrix (n_samples, hidden_size)
@@ -137,10 +137,12 @@ class ActivationDataset(BaseModel):
 
         if label_type == "reality":
             y = np.array([s.tool_used for s in self.samples], dtype=np.int32)
+        elif label_type == "reality_any":
+            y = np.array([s.tool_used_any for s in self.samples], dtype=np.int32)
         elif label_type == "narrative":
             y = np.array([s.claims_action for s in self.samples], dtype=np.int32)
         else:
-            raise ValueError(f"Unknown label type: {label_type}")
+            raise ValueError(f"Unknown label type: {label_type}. Must be 'reality', 'reality_any', or 'narrative'")
 
         return X, y
 
