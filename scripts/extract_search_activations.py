@@ -45,30 +45,90 @@ def main():
 
     print(f"✓ Model loaded on: {next(model.parameters()).device}")
 
+    # Helper functions for position finding
+    def find_token_positions(token_ids, tokenizer):
+        """Find key token positions in the sequence."""
+        positions = {
+            "first_assistant": None,
+            "before_tool": None,
+            "tool_start": None,
+        }
+
+        # Convert to list
+        if hasattr(token_ids, 'tolist'):
+            token_ids = token_ids.tolist()
+
+        # Find "<<CALL" tokens
+        call_str = "<<CALL"
+        call_tokens = tokenizer.encode(call_str, add_special_tokens=False)
+
+        # Search for first occurrence of call sequence
+        for i in range(len(token_ids) - len(call_tokens) + 1):
+            if token_ids[i:i+len(call_tokens)] == call_tokens:
+                positions["tool_start"] = i
+                positions["before_tool"] = max(0, i - 1)
+                break
+
+        # Find first assistant token (after last user message)
+        # Look for patterns like "[/INST]" or "Assistant:"
+        for marker in ["[/INST]", "Assistant:"]:
+            marker_tokens = tokenizer.encode(marker, add_special_tokens=False)
+            for i in range(len(token_ids) - len(marker_tokens) + 1):
+                if token_ids[i:i+len(marker_tokens)] == marker_tokens:
+                    positions["first_assistant"] = i + len(marker_tokens)
+                    break
+            if positions["first_assistant"] is not None:
+                break
+
+        return positions
+
+    def get_safe_probe_index(positions, preference="before_tool"):
+        """Get a safe position that's before any tool syntax."""
+        if preference == "before_tool" and positions["before_tool"] is not None:
+            return positions["before_tool"]
+        elif positions["first_assistant"] is not None:
+            return positions["first_assistant"]
+        else:
+            # Fallback: use middle of sequence
+            return None
+
     # Extract activations
     print(f"\nExtracting activations from {len(episodes)} episodes...")
+    print("Using 'before_tool' position (same as original analysis)")
 
     activations = []
     tool_used_list = []
     claims_action_list = []
     categories_list = []
+    skipped = 0
 
     TARGET_LAYER = 16  # Middle layer
 
     for i, ep in enumerate(tqdm(episodes, desc="Extracting")):
         try:
-            # Build full text
+            # Build full text using Mistral format
             system_prompt = ep.get('system_prompt', '')
             user_turns = ep.get('user_turns', [])
             reply = ep.get('reply', '')
 
-            # Format as conversation
-            full_text = f"{system_prompt}\n\n"
-            for turn in user_turns:
-                full_text += f"User: {turn}\n\n"
-            full_text += f"Assistant: {reply}"
+            # Format as Mistral conversation
+            full_text = f"<s>[INST] {system_prompt}\n\n{user_turns[0]} [/INST]"
+            for turn in user_turns[1:]:
+                full_text += f"</s>[INST] {turn} [/INST]"
+            full_text += reply
 
             # Tokenize
+            token_ids = tokenizer.encode(full_text, add_special_tokens=False)
+
+            # Find positions
+            positions = find_token_positions(token_ids, tokenizer)
+            probe_idx = get_safe_probe_index(positions, preference="before_tool")
+
+            if probe_idx is None:
+                skipped += 1
+                continue
+
+            # Now run forward pass
             inputs = tokenizer(full_text, return_tensors="pt", truncation=True, max_length=4096)
             inputs = {k: v.to(model.device) for k, v in inputs.items()}
 
@@ -76,12 +136,12 @@ def main():
             with torch.no_grad():
                 outputs = model(**inputs, output_hidden_states=True)
 
-            # Get activation from target layer at last token
+            # Get activation from target layer at probe position
             # hidden_states[0] = embeddings, hidden_states[1] = layer 0, ..., hidden_states[17] = layer 16
             hidden_state = outputs.hidden_states[TARGET_LAYER + 1]  # +1 because index 0 is embeddings
 
-            # Use last token position (before tool call if present)
-            activation = hidden_state[0, -1, :].cpu().numpy()
+            # Use probe position (before tool call)
+            activation = hidden_state[0, probe_idx, :].cpu().numpy()
 
             activations.append(activation)
             tool_used_list.append(ep.get('tool_used', False))
@@ -99,6 +159,7 @@ def main():
     categories_arr = np.array(categories_list)
 
     print(f"\n✓ Extracted {len(activations_arr)} activations")
+    print(f"  Skipped: {skipped} episodes (no valid probe position)")
     print(f"  Shape: {activations_arr.shape}")
     print(f"  Tool used rate: {tool_used_arr.mean():.1%}")
     print(f"  Claims action rate: {claims_action_arr.mean():.1%}")
