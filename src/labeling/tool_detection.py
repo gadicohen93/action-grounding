@@ -128,6 +128,39 @@ def detect_tool_call(text: str, tool_type: ToolType) -> dict:
     }
 
 
+def detect_any_tool_call(text: str) -> dict:
+    """Detect if ANY tool was called."""
+    all_calls = parse_tool_calls(text)
+
+    if not all_calls:
+        return {"tool_used_any": False, "tools_called": [], "raw_calls": []}
+
+    return {
+        "tool_used_any": True,
+        "tools_called": [c["function"] for c in all_calls],
+        "raw_calls": [c["full_match"] for c in all_calls],
+    }
+
+
+def detect_tool_call_extended(text: str, expected_tool_type: ToolType) -> dict:
+    """Extended detection returning both expected and any tool info."""
+    expected_result = detect_tool_call(text, expected_tool_type)
+    any_result = detect_any_tool_call(text)
+
+    wrong_tool_name = None
+    if any_result["tool_used_any"] and not expected_result["tool_used"]:
+        wrong_tool_name = any_result["tools_called"][0] if any_result["tools_called"] else "unknown"
+
+    return {
+        "tool_used": expected_result["tool_used"],
+        "tool_used_any": any_result["tool_used_any"],
+        "raw_call": expected_result.get("raw_call"),
+        "args": expected_result.get("args"),
+        "wrong_tool_name": wrong_tool_name,
+        "all_tools_called": any_result["tools_called"],
+    }
+
+
 def _parse_args_basic(args_str: str) -> Optional[dict]:
     """
     Basic argument parser for tool calls.

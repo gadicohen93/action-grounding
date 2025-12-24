@@ -40,6 +40,10 @@ class ActivationSample(BaseModel):
 
     # Labels (from episode)
     tool_used: bool = Field(description="Ground truth: was tool actually called?")
+    tool_used_any: bool = Field(
+        default=False,
+        description="Was ANY tool called?"
+    )
     claims_action: bool = Field(description="Does model claim to have taken action?")
     category: str = Field(description="Episode category (true_action, fake_action, etc.)")
     tool_type: str = Field(description="Type of tool (escalate, search, sendMessage)")

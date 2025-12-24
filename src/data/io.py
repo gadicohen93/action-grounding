@@ -295,6 +295,7 @@ def _load_activations_npz(path: Path) -> ActivationDataset:
 
     # Get metadata arrays
     tool_used = data["tool_used"]
+    tool_used_any = data.get("tool_used_any", tool_used)  # Fallback for old files
     claims_action = data.get("claims_action", np.zeros(n_samples, dtype=bool))
     categories = data.get("categories", np.array(["unknown"] * n_samples))
     positions = data.get("positions", np.array(["unknown"] * n_samples))
@@ -314,6 +315,7 @@ def _load_activations_npz(path: Path) -> ActivationDataset:
             layer=int(layers[i]),
             token_index=i,  # Placeholder
             tool_used=bool(tool_used[i]),
+            tool_used_any=bool(tool_used_any[i]),
             claims_action=bool(claims_action[i]),
             category=str(categories[i]),
             tool_type=str(tool_types[i]),
@@ -398,6 +400,7 @@ def _save_activations_npz(dataset: ActivationDataset, path: Path) -> None:
     data = {
         "activations": dataset.activations,
         "tool_used": np.array([s.tool_used for s in dataset.samples]),
+        "tool_used_any": np.array([s.tool_used_any for s in dataset.samples]),
         "claims_action": np.array([s.claims_action for s in dataset.samples]),
         "categories": np.array([s.category for s in dataset.samples]),
         "positions": np.array([s.position for s in dataset.samples]),
