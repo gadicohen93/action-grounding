@@ -274,11 +274,16 @@ class PyTorchBackend(ModelBackend):
 
             # Extract generated portions for each prompt
             for j, prompt in enumerate(batch_prompts):
-                # Get input length for this prompt
-                input_len = attention_mask[j].sum().item() if attention_mask is not None else input_ids[j].ne(self.tokenizer.pad_token_id).sum().item()
-                
-                # Extract generated portion
-                generated_ids = output_ids[j, input_len:]
+                # Find where prompt ends (accounting for left-padding)
+                # Count padding tokens from the left
+                pad_count = (input_ids[j] == self.tokenizer.pad_token_id).long().argmin().item()
+                # Get the actual prompt length (non-padded tokens)
+                prompt_len = attention_mask[j].sum().item() if attention_mask is not None else input_ids[j].ne(self.tokenizer.pad_token_id).sum().item()
+                # Input ends at: pad_count + prompt_len
+                input_end = pad_count + prompt_len
+
+                # Extract generated portion (everything after the prompt)
+                generated_ids = output_ids[j, input_end:]
                 generated_text = self.tokenizer.decode(generated_ids, skip_special_tokens=True)
 
                 # Strip stop sequences

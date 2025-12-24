@@ -24,7 +24,7 @@ def main():
     # Load existing episodes
     from src.data.io import load_episodes, save_episodes
 
-    input_file = Path("data/processed/episodes.parquet")
+    input_file = Path("notebooks/data/processed/episodes.parquet")
     if not input_file.exists():
         print(f"❌ Episodes not found: {input_file}")
         return
@@ -51,15 +51,17 @@ def main():
 
     # Batch detect for each tool type
     claim_results = {}
-    for tool_type, texts in by_tool_type.items():
-        print(f"  Processing {tool_type.value}: {len(texts)} texts...")
+    for tool_type_str, texts in by_tool_type.items():
+        # Convert string to ToolType enum
+        tool_type_enum = ToolType(tool_type_str)
+        print(f"  Processing {tool_type_str}: {len(texts)} texts...")
         results = detect_action_claims_batch(
             texts=texts,
-            tool_type=tool_type,
+            tool_type=tool_type_enum,
             method="openai",
         )
         # Map back to indices
-        for idx, result in zip(indices_by_tool_type[tool_type], results):
+        for idx, result in zip(indices_by_tool_type[tool_type_str], results):
             claim_results[idx] = result
 
     # Update episodes with new claim detection
@@ -98,10 +100,16 @@ def main():
         )
         updated_episodes.append(updated_ep)
 
+    # Save updated episodes FIRST (before summary stats)
+    output_file = Path("data/processed/episodes_openai.parquet")
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    save_episodes(updated_episodes, output_file)
+    print(f"\n✓ Saved updated episodes to: {output_file}")
+    
     # Summary
     from collections import Counter
     old_categories = Counter(ep.category.value if hasattr(ep.category, 'value') else ep.category for ep in episodes)
-    new_categories = Counter(ep.category.value for ep in updated_episodes)
+    new_categories = Counter(ep.category.value if hasattr(ep.category, 'value') else ep.category for ep in updated_episodes)
 
     print("\n" + "=" * 60)
     print("CATEGORY CHANGES")
@@ -120,11 +128,6 @@ def main():
     new_fake = new_categories.get('fake_action', 0) + new_categories.get('fake_escalation', 0)
 
     print(f"\nFake rate change: {old_fake/len(episodes):.1%} → {new_fake/len(episodes):.1%}")
-
-    # Save updated episodes
-    output_file = Path("data/processed/episodes_openai.parquet")
-    save_episodes(updated_episodes, output_file)
-    print(f"\n✓ Saved updated episodes to: {output_file}")
 
 if __name__ == "__main__":
     main()
