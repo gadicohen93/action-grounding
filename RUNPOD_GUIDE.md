@@ -146,7 +146,14 @@ pip install -r requirements.txt
 
 # Verify key packages
 python -c "import torch; import transformers; print('PyTorch:', torch.__version__); print('CUDA:', torch.cuda.is_available())"
+
+# Register venv as Jupyter kernel
+python -m ipykernel install --user --name=interpret --display-name="Python (interpret venv)"
 ```
+
+**Important:** After registering the kernel, you'll need to select it in your notebooks:
+- In Jupyter Notebook: **Kernel** → **Change Kernel** → **"Python (interpret venv)"**
+- In JupyterLab: Click kernel name (top-right) → Select **"Python (interpret venv)"**
 
 ### 3.5 Configure API Keys
 
@@ -236,6 +243,10 @@ tmux attach -t jupyter
 In Jupyter Lab:
 1. Navigate to `notebooks/` folder
 2. You should see: `01_behavioral_phenomenon.ipynb`, etc.
+3. **IMPORTANT:** When opening a notebook, select the correct kernel:
+   - Click the kernel name in the top-right (e.g., "Python 3")
+   - Select **"Python (interpret venv)"** from the dropdown
+   - This ensures notebooks use your venv with all installed packages
 
 ### 5.2 Notebook 01: Behavioral Phenomenon (~2-4 hours)
 

@@ -68,12 +68,18 @@ echo "✓ Dependencies installed"
 
 # Verify PyTorch GPU
 echo ""
-echo "[7/8] Verifying PyTorch GPU support..."
+echo "[7/9] Verifying PyTorch GPU support..."
 python -c "import torch; assert torch.cuda.is_available(), 'CUDA not available'; print(f'✓ PyTorch {torch.__version__} with CUDA {torch.version.cuda}')"
+
+# Register Jupyter kernel
+echo ""
+echo "[8/9] Registering Jupyter kernel..."
+python -m ipykernel install --user --name=interpret --display-name="Python (interpret venv)"
+echo "✓ Jupyter kernel registered"
 
 # Set up .env file
 echo ""
-echo "[8/8] Setting up environment variables..."
+echo "[9/9] Setting up environment variables..."
 if [ ! -f ".env" ]; then
     cp .env.example .env
     echo "⚠ .env file created from template"

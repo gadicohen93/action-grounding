@@ -6,7 +6,7 @@ Standard plotting functions for figures.
 
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -29,7 +29,7 @@ def plot_confusion_matrix(
     labels: Optional[list[str]] = None,
     normalize: Optional[str] = None,
     title: str = "Confusion Matrix",
-    save_path: Optional[str] = None,
+    save_path: Optional[Union[str, Path]] = None,
 ) -> plt.Figure:
     """
     Plot confusion matrix.
@@ -71,7 +71,7 @@ def plot_roc_curve(
     tpr: np.ndarray,
     auc: float,
     title: str = "ROC Curve",
-    save_path: Optional[str] = None,
+    save_path: Optional[Union[str, Path]] = None,
 ) -> plt.Figure:
     """
     Plot ROC curve.
@@ -109,7 +109,7 @@ def plot_calibration(
     mean_predicted: np.ndarray,
     fraction_positives: np.ndarray,
     title: str = "Calibration Plot",
-    save_path: Optional[str] = None,
+    save_path: Optional[Union[str, Path]] = None,
 ) -> plt.Figure:
     """
     Plot calibration curve (reliability diagram).
@@ -147,7 +147,7 @@ def plot_probe_comparison(
     metrics2: dict,
     labels: tuple[str, str] = ("Probe 1", "Probe 2"),
     title: str = "Probe Comparison",
-    save_path: Optional[str] = None,
+    save_path: Optional[Union[str, Path]] = None,
 ) -> plt.Figure:
     """
     Plot comparison of two probes.
@@ -197,7 +197,7 @@ def plot_probe_comparison(
 def plot_position_accuracy(
     position_accuracies: dict[str, float],
     title: str = "Probe Accuracy by Position",
-    save_path: Optional[str] = None,
+    save_path: Optional[Union[str, Path]] = None,
 ) -> plt.Figure:
     """
     Plot probe accuracy at different token positions.
@@ -237,7 +237,7 @@ def plot_position_accuracy(
 def plot_layer_analysis(
     layer_accuracies: dict[int, float],
     title: str = "Probe Accuracy by Layer",
-    save_path: Optional[str] = None,
+    save_path: Optional[Union[str, Path]] = None,
 ) -> plt.Figure:
     """
     Plot probe accuracy at different layers.
@@ -277,7 +277,7 @@ def plot_transfer_matrix(
     transfer_matrix: np.ndarray,
     tool_labels: list[str],
     title: str = "Cross-Tool Transfer Matrix",
-    save_path: Optional[str] = None,
+    save_path: Optional[Union[str, Path]] = None,
 ) -> plt.Figure:
     """
     Plot cross-tool transfer matrix.
@@ -331,7 +331,7 @@ def plot_fake_rate_heatmap(
     variant_labels: list[str],
     pressure_labels: list[str],
     title: str = "Fake Action Rate by Condition",
-    save_path: Optional[str] = None,
+    save_path: Optional[Union[str, Path]] = None,
 ) -> plt.Figure:
     """
     Plot fake action rate heatmap.
@@ -383,7 +383,7 @@ def plot_fake_rate_heatmap(
     return fig
 
 
-def _save_figure(fig: plt.Figure, path: str) -> None:
+def _save_figure(fig: plt.Figure, path: Union[str, Path]) -> None:
     """
     Save figure to disk in multiple formats.
 
