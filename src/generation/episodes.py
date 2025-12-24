@@ -218,7 +218,7 @@ class EpisodeGenerator:
 
         # Setup checkpointing
         if checkpoint_path is None and checkpoint_every > 0:
-            checkpoint_path = save_path.replace('.parquet', '_checkpoint.jsonl') if save_path else './episode_checkpoint.jsonl'
+            checkpoint_path = str(save_path).replace('.parquet', '_checkpoint.jsonl') if save_path else './episode_checkpoint.jsonl'
 
         def save_checkpoint(data_list, path, msg=""):
             """Save intermediate results to JSONL."""
