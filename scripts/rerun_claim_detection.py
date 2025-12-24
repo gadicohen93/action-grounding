@@ -24,7 +24,7 @@ def main():
     # Load existing episodes
     from src.data.io import load_episodes, save_episodes
 
-    input_file = Path("notebooks/data/processed/episodes.parquet")
+    input_file = Path("notebooks/data/processed/new_episodes.parquet")
     if not input_file.exists():
         print(f"❌ Episodes not found: {input_file}")
         return
