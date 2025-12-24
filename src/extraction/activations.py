@@ -136,6 +136,7 @@ class ActivationExtractor:
                     token_index=pos.token_index,
                     token_str=pos.token_str,
                     tool_used=episode.tool_used,
+                    tool_used_any=episode.tool_used_any,
                     claims_action=episode.claims_action,
                     category=episode.category.value if hasattr(episode.category, 'value') else episode.category,
                     tool_type=episode.tool_type.value if hasattr(episode.tool_type, 'value') else episode.tool_type,
