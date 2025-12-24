@@ -188,6 +188,8 @@ class EpisodeGenerator:
         save_path: Optional[str] = None,
         verbose: bool = True,
         use_batch_labeling: bool = True,
+        checkpoint_every: int = 100,
+        checkpoint_path: Optional[str] = None,
     ) -> list[Episode]:
         """
         Generate a batch of episodes.
@@ -198,10 +200,14 @@ class EpisodeGenerator:
             save_path: Optional path to save episodes (Parquet)
             verbose: Print progress
             use_batch_labeling: If True, batch OpenAI claim detection calls (much faster)
+            checkpoint_every: Save checkpoint every N episodes (0 to disable)
+            checkpoint_path: Path for checkpoint file (auto-generated if None)
 
         Returns:
             List of Episode objects
         """
+        import json
+        import os
         from tqdm import tqdm
         from collections import defaultdict
 
@@ -209,6 +215,28 @@ class EpisodeGenerator:
         episodes = []
 
         pipeline_start = time.time()
+
+        # Setup checkpointing
+        if checkpoint_path is None and checkpoint_every > 0:
+            checkpoint_path = save_path.replace('.parquet', '_checkpoint.jsonl') if save_path else './episode_checkpoint.jsonl'
+
+        def save_checkpoint(data_list, path, msg=""):
+            """Save intermediate results to JSONL."""
+            try:
+                with open(path, 'w') as f:
+                    for item in data_list:
+                        # Convert to serializable format
+                        serializable = {
+                            "output_text": item.get("output_text", ""),
+                            "tool_type": item.get("tool_type").value if item.get("tool_type") else None,
+                            "config": {k: v for k, v in item.get("config", {}).items() if k != "system_prompt"},
+                            "num_tokens": item.get("output").num_tokens_generated if item.get("output") else 0,
+                        }
+                        f.write(json.dumps(serializable) + '\n')
+                if msg:
+                    logger.info(f"  💾 Checkpoint saved: {path} ({len(data_list)} items) {msg}")
+            except Exception as e:
+                logger.warning(f"  Failed to save checkpoint: {e}")
 
         if verbose:
             log_section("EPISODE GENERATION PIPELINE")
@@ -358,6 +386,10 @@ class EpisodeGenerator:
             logger.info(f"  Tool detection complete in {phase3_time:.1f}s")
             logger.info(f"  Tools used: {tool_used_count}/{len(episode_data)} ({100*tool_used_count/len(episode_data):.1f}%)")
 
+        # Checkpoint after generation (most expensive phase)
+        if checkpoint_every > 0 and checkpoint_path and len(episode_data) > 0:
+            save_checkpoint(episode_data, checkpoint_path, f"after generation")
+
         # Phase 4: Batch claim detection
         phase4_start = time.time()
         if verbose:
@@ -481,7 +513,10 @@ class EpisodeGenerator:
 
             # Category breakdown
             from collections import Counter
-            categories = Counter(e.category.value for e in episodes)
+            categories = Counter(
+                e.category.value if hasattr(e.category, 'value') else e.category
+                for e in episodes
+            )
 
             logger.info(f"  Total episodes: {total_generated}")
             logger.info(f"  Total time: {total_time:.1f}s ({total_time/60:.1f} minutes)")
