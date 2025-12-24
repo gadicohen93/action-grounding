@@ -16,10 +16,10 @@ fast_mode: true
 model:
   # HuggingFace model ID - must match for generation AND extraction
   id: "mistralai/Mistral-7B-Instruct-v0.2"
-  # Backend: "pytorch" (standard, supports activation extraction) or "vLLM" (2-3x faster inference)
-  # Note: vLLM requires separate installation: pip install vllm (large dependencies ~5GB)
-  # vLLM doesn't support activation extraction - extraction will auto-switch to PyTorch
-  backend: "vllm"  # Much faster! Install with: pip install --no-cache-dir vllm
+  # Backend: "pytorch" (stable, supports activation extraction) or "vllm" (faster but needs setup)
+  # Note: vLLM requires: pip install vllm (large dependencies ~5GB)
+  # If you get "MistralForCausalLM not found" errors, use "pytorch" backend instead
+  backend: "pytorch"  # Stable choice; use "vllm" for 2-3x faster inference if it works
   # Quantization: "none", "4bit", "8bit"
   # Use "8bit" for most GPUs, "none" if you have 40GB+ VRAM
   quantization: "8bit"
