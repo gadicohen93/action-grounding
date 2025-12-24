@@ -2,6 +2,16 @@
 # ========================================
 # This file configures the research pipeline for studying
 # whether LLMs maintain internal representations of action execution.
+#
+# FAST MODE: Set fast_mode: true to run entire pipeline in ~10 minutes
+#            (uses fewer episodes but still gets meaningful results)
+
+# ============================================================================
+# QUICK START MODES
+# ============================================================================
+# fast_mode: true   -> ~10 min, 90 episodes (proof of concept)
+# fast_mode: false  -> ~60 min, 450+ episodes (publication quality)
+fast_mode: true
 
 model:
   # HuggingFace model ID - must match for generation AND extraction
@@ -38,10 +48,27 @@ labeling:
   batch_size: 20
 
 experiment:
-  # Episodes per condition: 3 variants x 5 pressures x 3 tools = 45 conditions
-  # 10 per condition = 450 total episodes (good for testing)
-  # 50 per condition = 2,250 total episodes (full experiment)
-  n_episodes_per_condition: 10
+  # ============================================================================
+  # EPISODE COUNTS (automatically adjusted by fast_mode)
+  # ============================================================================
+  # FAST MODE (fast_mode: true):
+  #   - 2 episodes per condition = 90 total episodes
+  #   - Good for debugging and proof-of-concept
+  #   - Runs in ~10 minutes
+  #
+  # FULL MODE (fast_mode: false):
+  #   - 10 episodes per condition = 450 total episodes
+  #   - Good for meaningful statistical results
+  #   - Runs in ~60 minutes
+  #
+  # PUBLICATION MODE: Set n_episodes_per_condition: 50
+  #   - 50 per condition = 2,250 total episodes
+  #   - Publication-quality results
+  #   - Runs in ~4-6 hours
+  # ============================================================================
+  n_episodes_per_condition: 10  # Overridden by fast_mode if true
+  n_episodes_per_condition_fast: 2  # Used when fast_mode: true
+
   # Tool types to test
   tools:
     - "escalate"

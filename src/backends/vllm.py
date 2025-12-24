@@ -141,6 +141,95 @@ class VLLMBackend(ModelBackend):
             num_tokens_generated=num_tokens,
         )
 
+    def generate_batch(
+        self,
+        prompts: list[str],
+        max_tokens: int = 512,
+        temperature: float = 0.7,
+        top_p: float = 0.9,
+        stop_sequences: Optional[list[str]] = None,
+        batch_size: int = 64,  # vLLM handles this internally
+        verbose: bool = True,
+    ) -> list[GenerationOutput]:
+        """
+        Generate text from multiple prompts using vLLM's continuous batching.
+
+        vLLM is optimized for batch generation - it uses PagedAttention and
+        continuous batching internally, so we pass ALL prompts at once for
+        maximum throughput.
+
+        Args:
+            prompts: List of prompt strings
+            max_tokens: Maximum tokens to generate
+            temperature: Sampling temperature
+            top_p: Top-p sampling parameter
+            stop_sequences: Optional stop sequences
+            batch_size: Ignored (vLLM handles batching internally)
+            verbose: Show progress info
+
+        Returns:
+            List of GenerationOutput objects
+        """
+        import time
+        from vllm import SamplingParams
+
+        if verbose:
+            logger.info(f"=" * 60)
+            logger.info(f"vLLM BATCH GENERATION")
+            logger.info(f"=" * 60)
+            logger.info(f"  Total prompts: {len(prompts)}")
+            logger.info(f"  Max tokens: {max_tokens}")
+            logger.info(f"  Temperature: {temperature}")
+            logger.info(f"  vLLM uses continuous batching (no explicit batch size)")
+
+        # Configure sampling parameters
+        sampling_params = SamplingParams(
+            max_tokens=max_tokens,
+            temperature=temperature if temperature > 0 else 1.0,
+            top_p=top_p,
+            stop=stop_sequences if stop_sequences else None,
+        )
+
+        # CRITICAL: Pass ALL prompts to vLLM at once
+        # vLLM's scheduler handles batching internally with continuous batching
+        start_time = time.time()
+        if verbose:
+            logger.info(f"  Starting generation at {time.strftime('%H:%M:%S')}")
+            logger.info(f"  This may take a minute... (vLLM optimizes internally)")
+
+        outputs = self._model.generate(prompts, sampling_params)
+
+        elapsed = time.time() - start_time
+        if verbose:
+            logger.info(f"  Generation complete in {elapsed:.1f}s")
+            logger.info(f"  Throughput: {len(prompts)/elapsed:.1f} prompts/sec")
+            total_tokens = sum(len(o.outputs[0].token_ids) for o in outputs)
+            logger.info(f"  Total tokens generated: {total_tokens:,}")
+            logger.info(f"  Token throughput: {total_tokens/elapsed:.0f} tokens/sec")
+
+        # Convert to GenerationOutput objects
+        results = []
+        for i, output in enumerate(outputs):
+            generated_text = output.outputs[0].text
+            num_tokens = len(output.outputs[0].token_ids)
+
+            # Tokenize for compatibility (batched for speed)
+            input_ids = self._tokenizer.encode(prompts[i], return_tensors="pt")
+            output_ids = self._tokenizer.encode(generated_text, return_tensors="pt")
+
+            results.append(GenerationOutput(
+                text=generated_text,
+                input_ids=input_ids[0] if len(input_ids) > 0 else None,
+                output_ids=output_ids[0] if len(output_ids) > 0 else None,
+                num_tokens_generated=num_tokens,
+            ))
+
+        if verbose:
+            logger.info(f"  Converted {len(results)} outputs")
+            logger.info(f"=" * 60)
+
+        return results
+
     def get_hidden_states(
         self,
         text: str,
@@ -328,4 +417,5 @@ class VLLMBackend(ModelBackend):
         # Clear CUDA cache
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
+
 

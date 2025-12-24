@@ -109,9 +109,14 @@ class ExperimentConfig(BaseModel):
     """Configuration for experiment parameters."""
 
     n_episodes_per_condition: int = Field(
-        default=50,
+        default=10,
         ge=1,
-        description="Number of episodes per experimental condition"
+        description="Number of episodes per experimental condition (full mode)"
+    )
+    n_episodes_per_condition_fast: int = Field(
+        default=2,
+        ge=1,
+        description="Number of episodes per condition in fast mode"
     )
     tools: list[str] = Field(
         default=["escalate", "search", "sendMessage"],
@@ -188,6 +193,10 @@ class SteeringConfig(BaseModel):
 class Config(BaseModel):
     """Root configuration object."""
 
+    fast_mode: bool = Field(
+        default=True,
+        description="Enable fast mode (~10 min) vs full mode (~60 min)"
+    )
     model: ModelConfig = Field(default_factory=ModelConfig)
     generation: GenerationConfig = Field(default_factory=GenerationConfig)
     data: DataConfig = Field(default_factory=DataConfig)
@@ -196,6 +205,28 @@ class Config(BaseModel):
     extraction: ExtractionConfig = Field(default_factory=ExtractionConfig)
     probe: ProbeConfig = Field(default_factory=ProbeConfig)
     steering: SteeringConfig = Field(default_factory=SteeringConfig)
+
+    def get_n_episodes_per_condition(self) -> int:
+        """Get effective episodes per condition based on fast_mode."""
+        if self.fast_mode:
+            return self.experiment.n_episodes_per_condition_fast
+        return self.experiment.n_episodes_per_condition
+
+    def get_total_episodes(self) -> int:
+        """Calculate total episodes based on conditions and mode."""
+        n_conditions = (
+            len(self.experiment.tools) *
+            len(self.experiment.system_variants) *
+            len(self.experiment.social_pressures)
+        )
+        return n_conditions * self.get_n_episodes_per_condition()
+
+    def log_mode_info(self) -> str:
+        """Return a string describing the current mode."""
+        mode = "FAST" if self.fast_mode else "FULL"
+        n_per = self.get_n_episodes_per_condition()
+        total = self.get_total_episodes()
+        return f"{mode} MODE: {n_per} eps/condition = {total} total episodes"
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> "Config":

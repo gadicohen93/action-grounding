@@ -9,6 +9,7 @@ This module handles the actual generation of episodes, including:
 
 import logging
 import time
+from datetime import datetime
 from typing import Optional
 
 from ..backends import get_backend
@@ -22,6 +23,26 @@ from .prompts import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def log_section(title: str, char: str = "="):
+    """Log a section header."""
+    logger.info(char * 60)
+    logger.info(f"  {title}")
+    logger.info(char * 60)
+
+
+def log_gpu_memory():
+    """Log GPU memory usage if available."""
+    try:
+        import torch
+        if torch.cuda.is_available():
+            allocated = torch.cuda.memory_allocated() / 1024**3
+            reserved = torch.cuda.memory_reserved() / 1024**3
+            total = torch.cuda.get_device_properties(0).total_memory / 1024**3
+            logger.info(f"  GPU Memory: {allocated:.1f}GB allocated / {reserved:.1f}GB reserved / {total:.1f}GB total")
+    except Exception:
+        pass
 
 
 class EpisodeGenerator:
@@ -187,19 +208,33 @@ class EpisodeGenerator:
         total = len(conditions) * n_per_condition
         episodes = []
 
-        if verbose:
-            logger.info(f"Generating {total} episodes...")
-            if use_batch_labeling and self.labeling_method == "openai":
-                logger.info("  Using batch claim detection (faster)")
-            progress = tqdm(total=total, desc="Generating")
+        pipeline_start = time.time()
 
-        # Phase 1: Generate all episodes (batched for speed)
+        if verbose:
+            log_section("EPISODE GENERATION PIPELINE")
+            logger.info(f"  Started at: {datetime.now().strftime('%H:%M:%S')}")
+            logger.info(f"  Total episodes to generate: {total}")
+            logger.info(f"  Conditions: {len(conditions)}")
+            logger.info(f"  Episodes per condition: {n_per_condition}")
+            logger.info(f"  Backend: {self.backend_type}")
+            logger.info(f"  Model: {self.model_id}")
+            logger.info(f"  Max tokens: {self.max_tokens}")
+            logger.info(f"  Temperature: {self.temperature}")
+            log_gpu_memory()
+            if use_batch_labeling and self.labeling_method == "openai":
+                logger.info("  Claim detection: Batched OpenAI (fast)")
+            else:
+                logger.info(f"  Claim detection: {self.labeling_method}")
+
+        # Phase 1: Collect all prompts
+        phase1_start = time.time()
+        if verbose:
+            log_section("PHASE 1: Preparing Prompts", "-")
+
         episode_data = []  # Store (episode_data, tool_type) for batch processing
-        
-        # Collect all prompts first
         prompts_to_generate = []
         prompt_metadata = []  # Store metadata for each prompt
-        
+
         for condition in conditions:
             # Build scenario object
             from .prompts import get_scenarios_for_tool, ToolType
@@ -228,7 +263,7 @@ class EpisodeGenerator:
                         config["system_prompt"],
                         config["user_turns"],
                     )
-                    
+
                     prompts_to_generate.append(prompt)
                     prompt_metadata.append({
                         "config": config,
@@ -236,32 +271,42 @@ class EpisodeGenerator:
                     })
                 except Exception as e:
                     logger.error(f"Failed to prepare episode: {e}")
-                    if verbose:
-                        progress.update(1)
 
-        # Batch generate all prompts (much faster!)
+        phase1_time = time.time() - phase1_start
         if verbose:
-            logger.info(f"Batch generating {len(prompts_to_generate)} prompts...")
-        
-        # Check if backend supports batch generation
-        if hasattr(self.backend, 'generate_batch') and self.backend_type == "pytorch":
-            # Use batch generation for PyTorch (much faster)
-            # With A40 (46GB VRAM), we can use much larger batches
-            # Current usage ~11GB, so we have ~35GB free
-            batch_size = 32  # Increased from 8 for better GPU utilization
-            logger.info(f"Using batch_size={batch_size} for generation")
+            logger.info(f"  Prepared {len(prompts_to_generate)} prompts in {phase1_time:.1f}s")
+            # Show prompt length stats
+            prompt_lens = [len(p) for p in prompts_to_generate]
+            logger.info(f"  Prompt lengths: min={min(prompt_lens)}, max={max(prompt_lens)}, avg={sum(prompt_lens)/len(prompt_lens):.0f} chars")
+
+        # Phase 2: Batch generate all prompts
+        phase2_start = time.time()
+        if verbose:
+            log_section("PHASE 2: Model Generation", "-")
+            logger.info(f"  Generating {len(prompts_to_generate)} responses...")
+
+        # Check if backend supports batch generation (works for BOTH vLLM and PyTorch!)
+        if hasattr(self.backend, 'generate_batch'):
+            # Use batch generation (much faster!)
+            if self.backend_type == "vllm":
+                logger.info("  Using vLLM continuous batching (all prompts at once)")
+            else:
+                logger.info("  Using PyTorch batch generation (batch_size=32)")
+
             outputs = self.backend.generate_batch(
                 prompts_to_generate,
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,
                 top_p=self.top_p,
-                batch_size=batch_size,
+                batch_size=32,  # Ignored by vLLM (uses continuous batching)
                 verbose=verbose,
             )
         else:
-            # Fallback to sequential (for vLLM or other backends)
+            # Fallback to sequential (slow!)
+            logger.warning("  No batch generation available - using sequential (SLOW)")
             outputs = []
-            for prompt in prompts_to_generate:
+            progress = tqdm(prompts_to_generate, desc="Generating") if verbose else prompts_to_generate
+            for prompt in progress:
                 output = self.backend.generate(
                     prompt=prompt,
                     temperature=self.temperature,
@@ -270,14 +315,26 @@ class EpisodeGenerator:
                 )
                 outputs.append(output)
 
-        # Process outputs
-        for output, metadata in zip(outputs, prompt_metadata):
+        phase2_time = time.time() - phase2_start
+        if verbose:
+            logger.info(f"  Generation complete in {phase2_time:.1f}s")
+            logger.info(f"  Speed: {len(outputs)/phase2_time:.1f} responses/sec")
+            log_gpu_memory()
+
+        # Process outputs (tool detection)
+        if verbose:
+            log_section("PHASE 3: Tool Detection", "-")
+            logger.info(f"  Detecting tool calls in {len(outputs)} responses...")
+
+        phase3_start = time.time()
+        from ..labeling.tool_detection import detect_tool_call
+
+        for i, (output, metadata) in enumerate(zip(outputs, prompt_metadata)):
             try:
                 config = metadata["config"]
                 tool_type = metadata["tool_type"]
 
                 # Detect tool usage (fast, regex-based)
-                from ..labeling.tool_detection import detect_tool_call
                 tool_call_result = detect_tool_call(
                     output.text,
                     tool_type=tool_type,
@@ -292,23 +349,23 @@ class EpisodeGenerator:
                     "output": output,
                 })
 
-                if verbose:
-                    progress.update(1)
-
             except Exception as e:
-                logger.error(f"Failed to process episode: {e}")
-                if verbose:
-                    progress.update(1)
+                logger.error(f"Failed to process episode {i}: {e}")
 
+        phase3_time = time.time() - phase3_start
         if verbose:
-            progress.close()
-            logger.info(f"\nGenerated {len(episode_data)} responses")
+            tool_used_count = sum(1 for d in episode_data if d["tool_call_result"]["tool_used"])
+            logger.info(f"  Tool detection complete in {phase3_time:.1f}s")
+            logger.info(f"  Tools used: {tool_used_count}/{len(episode_data)} ({100*tool_used_count/len(episode_data):.1f}%)")
 
-        # Phase 2: Batch claim detection (if enabled and using OpenAI)
+        # Phase 4: Batch claim detection
+        phase4_start = time.time()
+        if verbose:
+            log_section("PHASE 4: Claim Detection", "-")
+
         if use_batch_labeling and self.labeling_method == "openai":
             if verbose:
-                logger.info("Batch detecting claims...")
-                claim_progress = tqdm(total=len(episode_data), desc="Detecting claims")
+                logger.info("  Using batched OpenAI API calls...")
 
             from ..labeling.claim_detection import detect_action_claims_batch
 
@@ -321,44 +378,56 @@ class EpisodeGenerator:
                 by_tool_type[tool_type].append(data["output_text"])
                 indices_by_tool_type[tool_type].append(idx)
 
+            if verbose:
+                for tt, texts in by_tool_type.items():
+                    logger.info(f"    {tt.value}: {len(texts)} texts")
+
             # Batch detect claims for each tool type
             claim_results = {}
             for tool_type, texts in by_tool_type.items():
                 if verbose:
-                    claim_progress.set_description(f"Detecting claims ({tool_type.value})")
+                    logger.info(f"  Detecting claims for {tool_type.value}...")
+                batch_start = time.time()
                 results = detect_action_claims_batch(
                     texts=texts,
                     tool_type=tool_type,
                     method="openai",
                 )
+                batch_time = time.time() - batch_start
+                if verbose:
+                    claims_count = sum(1 for r in results if r.get("claims_action"))
+                    logger.info(f"    {len(results)} processed in {batch_time:.1f}s ({claims_count} claims)")
+
                 # Map results back to original indices
                 for idx, result in zip(indices_by_tool_type[tool_type], results):
                     claim_results[idx] = result
 
-            if verbose:
-                claim_progress.close()
         else:
             # Sequential claim detection (fallback)
-            claim_results = {}
             if verbose:
-                claim_progress = tqdm(total=len(episode_data), desc="Detecting claims")
+                logger.info(f"  Using sequential {self.labeling_method} detection...")
+            claim_results = {}
             from ..labeling.claim_detection import detect_action_claim
+            progress = tqdm(episode_data, desc="Detecting claims") if verbose else episode_data
 
-            for idx, data in enumerate(episode_data):
+            for idx, data in enumerate(progress if not verbose else episode_data):
                 claim_results[idx] = detect_action_claim(
                     data["output_text"],
                     tool_type=data["tool_type"],
                     method=self.labeling_method,
                 )
-                if verbose:
-                    claim_progress.update(1)
 
-            if verbose:
-                claim_progress.close()
-
-        # Phase 3: Build Episode objects
+        phase4_time = time.time() - phase4_start
         if verbose:
-            logger.info("Building episode objects...")
+            claims_count = sum(1 for r in claim_results.values() if r.get("claims_action"))
+            logger.info(f"  Claim detection complete in {phase4_time:.1f}s")
+            logger.info(f"  Claims detected: {claims_count}/{len(claim_results)} ({100*claims_count/len(claim_results):.1f}%)")
+
+        # Phase 5: Build Episode objects
+        phase5_start = time.time()
+        if verbose:
+            log_section("PHASE 5: Building Episodes", "-")
+            logger.info(f"  Creating {len(episode_data)} Episode objects...")
 
         for idx, data in enumerate(episode_data):
             claim_result = claim_results[idx]
@@ -398,14 +467,39 @@ class EpisodeGenerator:
 
             episodes.append(episode)
 
+        phase5_time = time.time() - phase5_start
+        total_time = time.time() - pipeline_start
+
         if verbose:
-            # Summary stats
+            logger.info(f"  Episode creation complete in {phase5_time:.1f}s")
+
+            # Final summary
+            log_section("PIPELINE COMPLETE")
             total_generated = len(episodes)
             fake_count = sum(1 for e in episodes if e.is_fake())
             fake_rate = fake_count / total_generated if total_generated > 0 else 0
 
-            logger.info(f"\nGenerated {total_generated} episodes")
-            logger.info(f"  Fake rate: {fake_rate:.1%} ({fake_count}/{total_generated})")
+            # Category breakdown
+            from collections import Counter
+            categories = Counter(e.category.value for e in episodes)
+
+            logger.info(f"  Total episodes: {total_generated}")
+            logger.info(f"  Total time: {total_time:.1f}s ({total_time/60:.1f} minutes)")
+            logger.info(f"  Speed: {total_generated/total_time:.1f} episodes/sec")
+            logger.info(f"")
+            logger.info(f"  CATEGORY BREAKDOWN:")
+            for cat, count in sorted(categories.items()):
+                logger.info(f"    {cat}: {count} ({100*count/total_generated:.1f}%)")
+            logger.info(f"")
+            logger.info(f"  FAKE RATE: {fake_rate:.1%} ({fake_count}/{total_generated})")
+            logger.info(f"")
+            logger.info(f"  TIME BREAKDOWN:")
+            logger.info(f"    Phase 1 (Prompts):    {phase1_time:6.1f}s ({100*phase1_time/total_time:5.1f}%)")
+            logger.info(f"    Phase 2 (Generation): {phase2_time:6.1f}s ({100*phase2_time/total_time:5.1f}%)")
+            logger.info(f"    Phase 3 (Tool Det.):  {phase3_time:6.1f}s ({100*phase3_time/total_time:5.1f}%)")
+            logger.info(f"    Phase 4 (Claims):     {phase4_time:6.1f}s ({100*phase4_time/total_time:5.1f}%)")
+            logger.info(f"    Phase 5 (Episodes):   {phase5_time:6.1f}s ({100*phase5_time/total_time:5.1f}%)")
+            log_gpu_memory()
 
         # Save if requested
         if save_path:
