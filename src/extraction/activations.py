@@ -168,6 +168,9 @@ class ActivationExtractor:
         Returns:
             ActivationDataset with all samples
         """
+        import time
+        from datetime import datetime
+
         config = get_config()
 
         if positions is None:
@@ -175,16 +178,34 @@ class ActivationExtractor:
         if layers is None:
             layers = config.extraction.layers
 
-        logger.info(f"Extracting activations from {len(episodes)} episodes")
-        logger.info(f"  Positions: {positions}")
-        logger.info(f"  Layers: {layers}")
+        start_time = time.time()
+
+        if verbose:
+            logger.info("=" * 60)
+            logger.info("ACTIVATION EXTRACTION")
+            logger.info("=" * 60)
+            logger.info(f"  Started at: {datetime.now().strftime('%H:%M:%S')}")
+            logger.info(f"  Episodes: {len(episodes)}")
+            logger.info(f"  Positions: {positions}")
+            logger.info(f"  Layers: {layers}")
+            logger.info(f"  Expected samples: {len(episodes)} × {len(positions)} × {len(layers)} = {len(episodes) * len(positions) * len(layers)}")
+
+            # Log GPU memory
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    allocated = torch.cuda.memory_allocated() / 1024**3
+                    reserved = torch.cuda.memory_reserved() / 1024**3
+                    logger.info(f"  GPU Memory: {allocated:.1f}GB allocated / {reserved:.1f}GB reserved")
+            except Exception:
+                pass
 
         all_samples = []
         all_activations = []
 
-        iterator = tqdm(episodes, desc="Extracting") if verbose else episodes
+        iterator = tqdm(episodes, desc="Extracting activations", unit="episode") if verbose else episodes
 
-        for episode in iterator:
+        for i, episode in enumerate(iterator):
             try:
                 samples = self.extract(episode, positions, layers)
 
@@ -195,6 +216,16 @@ class ActivationExtractor:
 
                     all_samples.append(sample)
                     all_activations.append(activation)
+
+                # Log progress every 50 episodes
+                if verbose and (i + 1) % 50 == 0:
+                    elapsed = time.time() - start_time
+                    rate = (i + 1) / elapsed
+                    remaining_episodes = len(episodes) - (i + 1)
+                    eta = remaining_episodes / rate if rate > 0 else 0
+                    logger.info(f"  Progress: {i+1}/{len(episodes)} episodes | "
+                              f"Rate: {rate:.1f} eps/s | "
+                              f"ETA: {eta/60:.1f} min")
 
             except Exception as e:
                 logger.error(f"Failed to extract from episode {episode.id}: {e}")
@@ -215,8 +246,17 @@ class ActivationExtractor:
         )
         dataset.activations = activation_matrix
 
-        logger.info(f"Extracted {len(all_samples)} activation samples")
-        logger.info(f"  Shape: {activation_matrix.shape}")
+        total_time = time.time() - start_time
+
+        if verbose:
+            logger.info("=" * 60)
+            logger.info("EXTRACTION COMPLETE")
+            logger.info("=" * 60)
+            logger.info(f"  Extracted {len(all_samples)} activation samples")
+            logger.info(f"  Shape: {activation_matrix.shape}")
+            logger.info(f"  Total time: {total_time:.1f}s ({total_time/60:.1f} minutes)")
+            logger.info(f"  Speed: {len(episodes)/total_time:.2f} episodes/sec")
+            logger.info(f"  Average: {total_time/len(episodes):.2f}s per episode")
 
         return dataset
 
