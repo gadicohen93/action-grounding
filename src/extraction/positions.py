@@ -38,6 +38,7 @@ def find_first_assistant_position(
     full_text: str,
     system_prompt: str,
     user_turns: list[str],
+    backend=None,
 ) -> Optional[TokenPosition]:
     """
     Find the first token of the assistant's response.
@@ -50,6 +51,7 @@ def find_first_assistant_position(
         full_text: Full formatted prompt + response
         system_prompt: System prompt
         user_turns: User messages
+        backend: Optional backend instance (to avoid reloading model)
 
     Returns:
         TokenPosition or None if not found
@@ -58,16 +60,17 @@ def find_first_assistant_position(
     input_ids = tokenizer.encode(full_text, add_special_tokens=False)
 
     # Reconstruct prompt (without response)
-    # This is model-dependent, but we can use format_chat from backend
-    from ..backends import get_backend
-    from ..config import get_config
+    # Use provided backend or create one (but prefer passing backend to avoid reload)
+    if backend is None:
+        from ..backends import get_backend
+        from ..config import get_config
 
-    config = get_config()
-    backend_class = get_backend(config.model.backend)
-    backend = backend_class(
-        model_id=config.model.id,
-        quantization=config.model.quantization,
-    )
+        config = get_config()
+        backend_class = get_backend(config.model.backend)
+        backend = backend_class(
+            model_id=config.model.id,
+            quantization=config.model.quantization,
+        )
 
     prompt_only = backend.format_chat(system_prompt, user_turns)
     prompt_ids = tokenizer.encode(prompt_only, add_special_tokens=False)
@@ -137,6 +140,7 @@ def find_mid_response_position(
     full_text: str,
     system_prompt: str,
     user_turns: list[str],
+    backend=None,
 ) -> Optional[TokenPosition]:
     """
     Find the middle token of the assistant's response.
@@ -146,13 +150,14 @@ def find_mid_response_position(
         full_text: Full formatted prompt + response
         system_prompt: System prompt
         user_turns: User messages
+        backend: Optional backend instance (to avoid reloading model)
 
     Returns:
         TokenPosition or None
     """
     # Get first assistant position
     first_pos = find_first_assistant_position(
-        tokenizer, full_text, system_prompt, user_turns
+        tokenizer, full_text, system_prompt, user_turns, backend=backend
     )
     if first_pos is None:
         return None
@@ -211,6 +216,7 @@ def find_token_position(
     position_name: str,
     system_prompt: Optional[str] = None,
     user_turns: Optional[list[str]] = None,
+    backend=None,
 ) -> Optional[TokenPosition]:
     """
     Find a token position by name.
@@ -221,6 +227,7 @@ def find_token_position(
         position_name: Position to find ("first_assistant", "mid_response", "before_tool", "final")
         system_prompt: Required for first_assistant and mid_response
         user_turns: Required for first_assistant and mid_response
+        backend: Optional backend instance (to avoid reloading model)
 
     Returns:
         TokenPosition or None if not found
@@ -228,12 +235,12 @@ def find_token_position(
     if position_name == "first_assistant":
         if system_prompt is None or user_turns is None:
             raise ValueError("system_prompt and user_turns required for first_assistant")
-        return find_first_assistant_position(tokenizer, full_text, system_prompt, user_turns)
+        return find_first_assistant_position(tokenizer, full_text, system_prompt, user_turns, backend=backend)
 
     elif position_name == "mid_response":
         if system_prompt is None or user_turns is None:
             raise ValueError("system_prompt and user_turns required for mid_response")
-        return find_mid_response_position(tokenizer, full_text, system_prompt, user_turns)
+        return find_mid_response_position(tokenizer, full_text, system_prompt, user_turns, backend=backend)
 
     elif position_name == "before_tool":
         return find_before_tool_position(tokenizer, full_text)
@@ -251,6 +258,7 @@ def find_all_positions(
     system_prompt: str,
     user_turns: list[str],
     position_names: Optional[list[str]] = None,
+    backend=None,
 ) -> dict[str, Optional[TokenPosition]]:
     """
     Find all requested positions.
@@ -261,6 +269,7 @@ def find_all_positions(
         system_prompt: System prompt
         user_turns: User messages
         position_names: Positions to find (default: all)
+        backend: Optional backend instance (to avoid reloading model)
 
     Returns:
         Dict mapping position name to TokenPosition (or None if not found)
@@ -273,7 +282,7 @@ def find_all_positions(
     for name in position_names:
         try:
             pos = find_token_position(
-                tokenizer, full_text, name, system_prompt, user_turns
+                tokenizer, full_text, name, system_prompt, user_turns, backend=backend
             )
             positions[name] = pos
         except Exception as e:

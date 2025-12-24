@@ -88,13 +88,14 @@ class ActivationExtractor:
             assistant_prefix=episode.assistant_reply,
         )
 
-        # Find token positions
+        # Find token positions (pass backend to avoid reloading model)
         position_objs = find_all_positions(
             self.backend.tokenizer,
             full_text,
             episode.system_prompt,
             episode.user_turns,
             position_names=positions,
+            backend=self.backend,
         )
 
         # Extract hidden states for all layers

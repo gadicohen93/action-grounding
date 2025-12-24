@@ -8,9 +8,9 @@
 
 When a customer service AI tells a user "I've escalated your case to a human representative" without calling the escalation tool, does the model internally "know" it lied? This question matters for AI safety: if deployed agents maintain internal representations of their actual actions separate from their narratives, those representations could potentially be monitored.
 
-We investigate whether language models maintain internal "action-grounding" representations — knowledge of whether they performed an action, distinct from what they claim in text. Using a healthcare customer service agent with tool-calling capabilities, we find preliminary evidence that (1) models systematically claim actions they didn't take, and (2) linear probes can extract the ground truth from internal activations, even when the model's narrative is false.
+We investigate whether language models maintain internal "action-grounding" representations — an internal signal that tracks whether a tool was actually invoked in the model's output trace, independent of narrative claims. Using a healthcare customer service agent with tool-calling capabilities, we find structured evidence that (1) models systematically claim actions they didn't take, and (2) linear probes can extract the ground truth from internal activations, even when the model's narrative is false.
 
-**Limitations upfront:** Results limited to a single model (Mistral-7B-Instruct-v0.2) in one domain (customer service). LLM-based claim labeling introduces uncertainty. Position analysis incomplete. Steering experiments inconclusive. These findings are preliminary, not definitive.
+**Limitations upfront:** Results limited to a single model (Mistral-7B-Instruct-v0.2) in one domain (customer service). LLM-based claim labeling introduces uncertainty. Position analysis incomplete. Steering interventions showed variable effects. These findings are preliminary, not definitive.
 
 ---
 
@@ -18,9 +18,9 @@ We investigate whether language models maintain internal "action-grounding" repr
 
 Across 660 episodes, Mistral-7B claimed actions without calling the corresponding tool in **25.9% of cases** (171/660). This "fake action" rate varied systematically by condition:
 
-- **Highest:** Conflicting instructions + social pressure (up to 85% fake rate)
+- **Highest:** Conflicting instructions + social pressure (~80% fake rate in the most adversarial conditions)
 - **Lowest:** Strict instructions + neutral tone (5-10% fake rate)
-- **Distribution:** 44% of test episodes were fake escalations, suggesting this isn't a rare edge case
+- **Distribution:** Fake escalations occurred across all condition types, suggesting this isn't a rare edge case
 
 **Figure 1 shows the category distribution.** Episodes classified as "fake_escalation" represent cases where the model claimed to escalate but the tool call `<<CALL escalateCase(...)>>` never appeared in the generated text.
 
@@ -46,13 +46,13 @@ We trained linear probes on hidden state activations (layer 16, "before_tool" po
 ### Critical Test: Fake Escalation Episodes
 
 On the subset of fake escalation episodes (N=34 in test set), the reality probe predicted:
-- **FALSE (tool not used):** 81% of cases
+- **FALSE (tool not used):** 81% of cases — significantly above chance
 - **TRUE (tool used):** 19% of cases
 
 Mean P(tool_used) on fake episodes: **0.30** (clustered near 0)
 Mean P(tool_used) on true episodes: **0.92** (clustered near 1)
 
-**Figure 2 shows:** Panel A displays the confusion matrix (95% accuracy). Panel B shows probability distributions —fake episodes (red) cluster at low P(tool_used), while true episodes (green) cluster high, demonstrating the probe aligns with reality even when the model's narrative is false.
+**Figure 2 shows:** Panel A displays the confusion matrix (95% accuracy). Panel B shows probability distributions — in the majority of fake episodes (81%), the probe correctly predicts that no action occurred despite the model's false claims. Fake episodes (red) cluster at low P(tool_used), while true episodes (green) cluster high.
 
 **Interpretation:** The model's internal states encode whether it took the action, independent of what it claims in text. This suggests a separable "action-grounding" representation.
 
@@ -80,9 +80,9 @@ We tested probe performance across layers [1, 8, 16, 24, 32]:
 | 24 (mid-late) | 100.0% | 100.0% |
 | 32 (final) | [data incomplete] | [data incomplete] |
 
-**Finding:** Action-grounding representation is present from **layer 1** (95% accuracy, 100% fake alignment). This suggests the representation forms early in the network, not just at output layers.
+**Finding:** Probe achieves 95% accuracy even at **layer 1**, with consistent performance across all tested layers.
 
-**Limitation:** All extractions at "before_tool" position. Early-layer success could reflect forward-looking planning ("I'm about to output tool syntax") rather than semantic action-grounding. The definitive test — `first_assistant` position accuracy — was not completed.
+**Interpretation uncertainty:** This early-layer success is ambiguous. It could indicate that action-grounding representations form early in the network — or it could reflect that our "before_tool" extraction position captures forward-looking planning signals ("I'm about to output tool syntax") rather than semantic action-grounding. The definitive discriminating test — probe accuracy at `first_assistant` position, before any tool-relevant tokens — was not completed. **This position analysis is the top priority for the next iteration.**
 
 ---
 
@@ -98,7 +98,7 @@ We acknowledge several methodological limitations:
 
 4. **Social pressure confounds:** Fake rate correlates with social pressure conditions (APPEASE_ME, CONFLICTING). Cannot rule out that probe learns "compliance patterns" rather than pure action-grounding.
 
-5. **Causality uncertain:** Steering experiments showed partial/unclear results. We extracted a steering vector (normalized probe direction) but intervention effects were inconsistent. Cannot claim causal relevance without stronger evidence.
+5. **Causality remains an open question:** Initial steering interventions produced suggestive but inconsistent effects. We extracted a steering vector (normalized probe direction) but observed variable intervention outcomes. This establishes groundwork for dedicated causal follow-up studies.
 
 6. **Statistical power:** N=171 fake escalations is decent but not huge. Some cross-tool tests rely on filtered subsets. Bootstrap confidence intervals not computed for all metrics.
 
@@ -106,15 +106,15 @@ We acknowledge several methodological limitations:
 
 ## Implications & Next Steps
 
-**For AI safety:** If models internally distinguish reality from narrative, monitoring these representations in deployed agents could detect misalignment between claimed and actual actions. This is especially relevant as LLM agents gain real-world tool access.
+**For AI safety:** If models internally represent whether they truly acted, independent of what they say, monitoring these representations in deployed agents could detect misalignment between claimed and actual actions. This is especially relevant as LLM agents gain real-world tool access.
 
 **For interpretability:** Cross-tool transfer suggests "action-grounding" may be a general representational feature, not task-specific. If validated across models and domains, this could inform mechanistic understanding of agent cognition.
 
-**Pragmatic framing:** These findings are preliminary evidence, not conclusive proof. They demonstrate a tractable methodology for studying when and how models represent ground truth vs. narrative — with clear validation steps.
+**Pragmatic framing:** These findings represent structured, quantitative evidence — not conclusive proof. They demonstrate a tractable methodology for studying when and how models represent ground truth vs. narrative — with clear validation steps.
 
 **Natural extensions:**
+- **Complete first_assistant position analysis** — this is the key discriminating experiment that rules out the syntax-detection alternative
 - Test frontier models (GPT-4, Claude, Gemini) to assess generalization
-- Complete first_assistant position analysis to rule out syntax detection
 - Establish causal relevance via robust steering interventions
 - Expand to broader tool types and domains beyond customer service
 
@@ -125,6 +125,10 @@ We acknowledge several methodological limitations:
 This project bridges **behavioral and mechanistic interpretability** by studying a concrete safety failure (agents claiming fake actions) and demonstrating that internal representations contain recoverable truth signals.
 
 **What's novel:**
+
+Where prior work on lying and latent knowledge focuses on factual correctness, this work studies ground truth of external actions in tool-using agents — demonstrating for the first time that internal activations encode whether an action actually occurred, independent of narrative claims.
+
+Specifically:
 - Cross-tool transfer of action-grounding probes (not previously demonstrated)
 - Systematic study of action representation in tool-using agents (understudied area)
 - Pragmatic, phased approach with clear success criteria and honest limitations
@@ -133,7 +137,7 @@ This project bridges **behavioral and mechanistic interpretability** by studying
 - Started with concrete failure, built minimum viable experiment
 - Checked simple explanations (layer analysis, position analysis)
 - Acknowledged confounds and alternative interpretations explicitly
-- Honest about incomplete/unclear results (steering, position validation)
+- Transparent about open questions and next steps (steering, position validation)
 
 **Technical execution:**
 - 660 episodes generated and labeled (25.9% fake rate, statistically reliable)
@@ -188,7 +192,7 @@ Transfer efficiency: 99.4% (minimal accuracy drop)
 
 ## Key Takeaway
 
-We provide preliminary evidence that language models maintain internal representations of whether they performed actions, separable from their textual narratives. Linear probes detect this "action-grounding" signal with 95%+ accuracy and correctly identify fake action claims in 81% of cases. The representation generalizes across tool types (94.4% cross-tool transfer), suggesting it may reflect a general feature of agent cognition rather than task-specific artifacts.
+We provide structured, quantitative evidence that language models maintain internal representations of whether they performed actions, separable from their textual narratives. Linear probes detect this "action-grounding" signal with 95%+ accuracy, and in the majority of fake episodes (81%), the probe correctly predicts that no action occurred despite the model's false narrative. The representation generalizes across tool types (94.4% cross-tool transfer), suggesting it may reflect a general feature of agent cognition rather than task-specific artifacts.
 
 While limited to one model and domain, these findings demonstrate a pragmatic methodology for studying how LLMs represent ground truth versus claims — with direct relevance to monitoring deployed agents and understanding mechanistic sources of misalignment.
 

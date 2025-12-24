@@ -64,6 +64,44 @@ def load_episodes(
     return EpisodeCollection(episodes=episodes)
 
 
+def load_all_episodes(
+    paths: Union[list[Union[str, Path]], Union[str, Path]],
+    validate: bool = True,
+) -> EpisodeCollection:
+    """
+    Load episodes from multiple files and combine them.
+    
+    Args:
+        paths: Single path or list of paths to episode files
+        validate: Whether to validate each episode against schema
+        
+    Returns:
+        EpisodeCollection with all episodes combined
+        
+    Example:
+        >>> # Load from multiple files
+        >>> episodes = load_all_episodes([
+        ...     "data/processed/new_episodes.parquet",
+        ...     "data/processed/episodes.parquet"
+        ... ])
+        >>> 
+        >>> # Or load from a single file (same as load_episodes)
+        >>> episodes = load_all_episodes("data/processed/new_episodes.parquet")
+    """
+    if isinstance(paths, (str, Path)):
+        # Single file - just use load_episodes
+        return load_episodes(paths, validate=validate)
+    
+    # Multiple files - load and combine
+    all_episodes = []
+    for path in paths:
+        collection = load_episodes(path, validate=validate)
+        all_episodes.extend(collection.episodes)
+    
+    logger.info(f"Combined {len(all_episodes)} episodes from {len(paths)} files")
+    return EpisodeCollection(episodes=all_episodes)
+
+
 def _load_episodes_parquet(path: Path, validate: bool) -> list[Episode]:
     """Load episodes from Parquet file."""
     df = pd.read_parquet(path)
