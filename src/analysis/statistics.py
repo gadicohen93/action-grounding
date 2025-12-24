@@ -5,10 +5,12 @@ Bootstrap confidence intervals, significance tests, etc.
 """
 
 import logging
+import warnings
 from typing import Callable, Optional
 
 import numpy as np
 from sklearn.metrics import confusion_matrix, roc_auc_score, roc_curve
+from sklearn.exceptions import UndefinedMetricWarning
 from sklearn.utils import resample
 
 from ..config import get_config
@@ -120,11 +122,16 @@ def bootstrap_metrics(
 
         if y_proba is not None:
             y_proba_boot = y_proba[indices]
-            try:
-                aucs.append(roc_auc_score(y_true_boot, y_proba_boot))
-            except ValueError:
-                # Handle case where all samples are one class
-                pass
+            unique_classes = np.unique(y_true_boot)
+            if len(unique_classes) >= 2:
+                # Suppress warning for single-class case
+                with warnings.catch_warnings():
+                    warnings.filterwarnings('ignore', category=UndefinedMetricWarning)
+                    try:
+                        aucs.append(roc_auc_score(y_true_boot, y_proba_boot))
+                    except ValueError:
+                        # Handle case where all samples are one class
+                        pass
 
     # Compute CIs
     alpha = 1 - confidence_level
@@ -184,8 +191,19 @@ def compute_roc_auc(
     Returns:
         (auc, fpr, tpr, thresholds)
     """
-    auc = roc_auc_score(y_true, y_proba)
-    fpr, tpr, thresholds = roc_curve(y_true, y_proba)
+    unique_classes = np.unique(y_true)
+    if len(unique_classes) < 2:
+        auc = float('nan')
+        # Return dummy curve values
+        fpr = np.array([0.0, 1.0])
+        tpr = np.array([0.0, 1.0])
+        thresholds = np.array([1.0, 0.0])
+    else:
+        # Suppress warning for single-class case
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', category=UndefinedMetricWarning)
+            auc = roc_auc_score(y_true, y_proba)
+        fpr, tpr, thresholds = roc_curve(y_true, y_proba)
 
     return auc, fpr, tpr, thresholds
 

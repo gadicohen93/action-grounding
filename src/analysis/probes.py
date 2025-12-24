@@ -6,6 +6,7 @@ Linear probes for detecting features in activation space.
 
 import logging
 import pickle
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Literal
@@ -20,6 +21,7 @@ from sklearn.metrics import (
     f1_score,
     roc_auc_score,
 )
+from sklearn.exceptions import UndefinedMetricWarning
 
 from ..data import ActivationDataset
 from ..config import get_config
@@ -156,7 +158,10 @@ def evaluate_probe(
     if len(unique_classes) < 2:
         roc_auc = float('nan')  # Undefined when only one class present
     else:
-        roc_auc = roc_auc_score(y_test, y_proba)
+        # Suppress warning for single-class case (we already checked)
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', category=UndefinedMetricWarning)
+            roc_auc = roc_auc_score(y_test, y_proba)
 
     # Confusion matrix
     tp = np.sum((y_test == 1) & (y_pred == 1))
