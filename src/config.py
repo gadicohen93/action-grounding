@@ -228,6 +228,21 @@ class Config(BaseModel):
         total = self.get_total_episodes()
         return f"{mode} MODE: {n_per} eps/condition = {total} total episodes"
 
+    @property
+    def figures_dir(self) -> Path:
+        """Convenience property for figures directory."""
+        return self.data.figures_dir
+
+    @property
+    def raw_dir(self) -> Path:
+        """Convenience property for raw data directory."""
+        return self.data.raw_dir
+
+    @property
+    def processed_dir(self) -> Path:
+        """Convenience property for processed data directory."""
+        return self.data.processed_dir
+
     @classmethod
     def from_yaml(cls, path: str | Path) -> "Config":
         """Load configuration from a YAML file."""

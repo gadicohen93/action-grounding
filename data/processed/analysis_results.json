@@ -1,0 +1,10 @@
+{
+  "n_episodes": 660,
+  "fake_count": 171,
+  "fake_rate": 0.2590909090909091,
+  "reality_probe_acc": 0.946969696969697,
+  "narrative_probe_acc": 0.7575757575757576,
+  "fake_aligned_reality": 1.0,
+  "fake_aligned_narrative": 0.0,
+  "transfer_acc": null
+}

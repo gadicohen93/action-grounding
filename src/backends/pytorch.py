@@ -51,9 +51,12 @@ class PyTorchBackend(ModelBackend):
         }
 
         if self.quantization == "8bit":
-            quantization_config = BitsAndBytesConfig(load_in_8bit=True)
+            quantization_config = BitsAndBytesConfig(
+                load_in_8bit=True,
+                llm_int8_enable_fp32_cpu_offload=True,  # Allow CPU offload if GPU is tight
+            )
             load_kwargs["quantization_config"] = quantization_config
-            logger.info("  Using 8-bit quantization")
+            logger.info("  Using 8-bit quantization (with CPU offload enabled)")
         elif self.quantization == "4bit":
             quantization_config = BitsAndBytesConfig(
                 load_in_4bit=True,

@@ -53,8 +53,13 @@ class ProbeMetrics:
             f"Precision: {self.precision:.3f}",
             f"Recall:    {self.recall:.3f}",
             f"F1:        {self.f1:.3f}",
-            f"ROC-AUC:   {self.roc_auc:.3f}",
         ]
+        
+        # ROC-AUC is undefined when only one class is present
+        if not np.isnan(self.roc_auc):
+            lines.append(f"ROC-AUC:   {self.roc_auc:.3f}")
+        else:
+            lines.append("ROC-AUC:   N/A (only one class present)")
 
         if self.cv_mean is not None:
             lines.append(f"CV Mean:   {self.cv_mean:.3f} ± {self.cv_std:.3f}")
@@ -145,7 +150,13 @@ def evaluate_probe(
     precision = precision_score(y_test, y_pred, zero_division=0)
     recall = recall_score(y_test, y_pred, zero_division=0)
     f1 = f1_score(y_test, y_pred, zero_division=0)
-    roc_auc = roc_auc_score(y_test, y_proba)
+    
+    # ROC AUC requires both classes to be present
+    unique_classes = np.unique(y_test)
+    if len(unique_classes) < 2:
+        roc_auc = float('nan')  # Undefined when only one class present
+    else:
+        roc_auc = roc_auc_score(y_test, y_proba)
 
     # Confusion matrix
     tp = np.sum((y_test == 1) & (y_pred == 1))
