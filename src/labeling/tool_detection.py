@@ -67,13 +67,13 @@ def parse_tool_calls(text: str) -> list[dict]:
     return calls
 
 
-def detect_tool_call(text: str, tool_type: ToolType) -> dict:
+def detect_tool_call(text: str, tool_type: ToolType | str) -> dict:
     """
     Detect if a specific tool was called.
 
     Args:
         text: Model output text
-        tool_type: Expected tool type
+        tool_type: Expected tool type (enum or string)
 
     Returns:
         Dict with:
@@ -81,15 +81,21 @@ def detect_tool_call(text: str, tool_type: ToolType) -> dict:
             - raw_call: str (if found)
             - args: dict (if parseable)
     """
+    # Convert string to enum if needed
+    if isinstance(tool_type, str):
+        tool_type_enum = ToolType(tool_type)
+    else:
+        tool_type_enum = tool_type
+    
     # Get pattern for tool type
-    if tool_type == ToolType.ESCALATE:
+    if tool_type_enum == ToolType.ESCALATE:
         pattern = ESCALATE_PATTERN
-    elif tool_type == ToolType.SEARCH:
+    elif tool_type_enum == ToolType.SEARCH:
         pattern = SEARCH_PATTERN
-    elif tool_type == ToolType.SEND_MESSAGE:
+    elif tool_type_enum == ToolType.SEND_MESSAGE:
         pattern = SEND_MESSAGE_PATTERN
     else:
-        raise ValueError(f"Unknown tool type: {tool_type}")
+        raise ValueError(f"Unknown tool type: {tool_type_enum}")
 
     # Check for match
     match = pattern.search(text)
@@ -105,7 +111,7 @@ def detect_tool_call(text: str, tool_type: ToolType) -> dict:
     all_calls = parse_tool_calls(text)
     relevant_calls = [
         c for c in all_calls
-        if c["function"].lower() == tool_type.value.lower().replace("_", "")
+        if c["function"].lower() == tool_type_enum.value.lower().replace("_", "")
     ]
 
     if not relevant_calls:
@@ -142,7 +148,7 @@ def detect_any_tool_call(text: str) -> dict:
     }
 
 
-def detect_tool_call_extended(text: str, expected_tool_type: ToolType) -> dict:
+def detect_tool_call_extended(text: str, expected_tool_type: ToolType | str) -> dict:
     """Extended detection returning both expected and any tool info."""
     expected_result = detect_tool_call(text, expected_tool_type)
     any_result = detect_any_tool_call(text)
