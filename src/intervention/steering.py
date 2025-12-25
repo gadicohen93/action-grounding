@@ -11,7 +11,8 @@ from pathlib import Path
 from typing import Optional, Union
 
 import numpy as np
-import torch
+# Lazy import torch to avoid slow CUDA initialization at module import time
+# torch will be imported when needed in _create_steering_hook()
 from tqdm import tqdm
 
 from ..backends import get_backend
@@ -93,6 +94,8 @@ class SteeringExperiment:
         Returns:
             Hook function
         """
+        import torch  # Lazy import to avoid slow CUDA initialization at module import time
+        
         direction_tensor = torch.tensor(
             self.probe_direction * alpha,
             dtype=self.backend.model.dtype if hasattr(self.backend.model, 'dtype') else torch.float16,
