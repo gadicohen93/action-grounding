@@ -205,3 +205,20 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Research data files (large files shouldn't be in git)
+# Large numpy arrays (activations, embeddings, etc.)
+*.npy
+*.npz
+
+# Large data files in data directories
+data/**/*.npz
+data/**/*.npy
+notebooks/data/**/*.npz
+notebooks/data/**/*.npy
+
+# Keep small metadata/config files
+!data/**/*.json
+!data/**/*.yaml
+!data/**/*.yml
+!config.yaml

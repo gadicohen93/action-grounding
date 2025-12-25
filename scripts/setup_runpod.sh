@@ -21,8 +21,8 @@ nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
 echo ""
 echo "[1/8] Updating system packages..."
 apt-get update -qq
-apt-get install -y git tmux htop vim curl wget > /dev/null 2>&1
-echo "✓ System packages installed"
+apt-get install -y git tmux htop vim curl wget rsync > /dev/null 2>&1
+echo "✓ System packages installed (including rsync for syncing)"
 
 # Navigate to workspace
 echo ""
@@ -44,6 +44,21 @@ else
     echo "    cd action-grounding"
     echo "Then run this script again."
     exit 0
+fi
+
+# Check for SSH key (for GitHub push access)
+echo ""
+if [ ! -f ~/.ssh/id_ed25519.pub ] && [ ! -f ~/.ssh/id_rsa.pub ]; then
+    echo "[3.5/9] No SSH key found. To enable git push, generate one:"
+    echo "    ssh-keygen -t ed25519 -C 'your_email@example.com'"
+    echo "    cat ~/.ssh/id_ed25519.pub"
+    echo "    (Then add to GitHub: Settings → SSH and GPG keys)"
+    echo "    git remote set-url origin git@github.com:YOUR_USERNAME/action-grounding.git"
+else
+    echo "[3.5/9] SSH key found:"
+    ls -1 ~/.ssh/*.pub 2>/dev/null | head -1 | xargs cat
+    echo ""
+    echo "    (If not added to GitHub, add the key above to GitHub Settings → SSH and GPG keys)"
 fi
 
 # Create Python virtual environment
@@ -73,13 +88,13 @@ python -c "import torch; assert torch.cuda.is_available(), 'CUDA not available';
 
 # Register Jupyter kernel
 echo ""
-echo "[8/9] Registering Jupyter kernel..."
+echo "[8/10] Registering Jupyter kernel..."
 python -m ipykernel install --user --name=interpret --display-name="Python (interpret venv)"
 echo "✓ Jupyter kernel registered"
 
 # Set up .env file
 echo ""
-echo "[9/9] Setting up environment variables..."
+echo "[9/10] Setting up environment variables..."
 if [ ! -f ".env" ]; then
     cp .env.example .env
     echo "⚠ .env file created from template"
@@ -91,6 +106,18 @@ fi
 
 # Create data directories
 mkdir -p data/raw data/processed figures logs
+
+# Final step: Git remote check
+echo ""
+echo "[10/10] Checking Git remote configuration..."
+if git remote get-url origin 2>/dev/null | grep -q "^https://"; then
+    echo "⚠ Git remote uses HTTPS. To enable push without password prompts:"
+    echo "   Option 1: Switch to SSH (recommended)"
+    echo "      git remote set-url origin git@github.com:YOUR_USERNAME/action-grounding.git"
+    echo "      (Make sure SSH key is added to GitHub)"
+    echo "   Option 2: Use Personal Access Token when pushing"
+    echo "      (Generate at: GitHub → Settings → Developer settings → Personal access tokens)"
+fi
 
 echo ""
 echo "=================================================="

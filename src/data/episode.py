@@ -217,20 +217,32 @@ class EpisodeCollection(BaseModel):
     def __getitem__(self, idx):
         return self.episodes[idx]
 
-    def filter_by_category(self, category: EpisodeCategory) -> "EpisodeCollection":
+    def filter_by_category(self, category: EpisodeCategory | str) -> "EpisodeCollection":
         """Filter episodes by category."""
-        filtered = [e for e in self.episodes if e.category == category]
+        # Convert string to enum if needed
+        if isinstance(category, str):
+            category_enum = EpisodeCategory(category)
+        else:
+            category_enum = category
+        
+        filtered = [e for e in self.episodes if e.category == category_enum]
         return EpisodeCollection(
             episodes=filtered,
-            description=f"Filtered: {category.value}",
+            description=f"Filtered: {category_enum.value}",
         )
 
-    def filter_by_tool(self, tool_type: ToolType) -> "EpisodeCollection":
+    def filter_by_tool(self, tool_type: ToolType | str) -> "EpisodeCollection":
         """Filter episodes by tool type."""
-        filtered = [e for e in self.episodes if e.tool_type == tool_type]
+        # Convert string to enum if needed
+        if isinstance(tool_type, str):
+            tool_type_enum = ToolType(tool_type)
+        else:
+            tool_type_enum = tool_type
+        
+        filtered = [e for e in self.episodes if e.tool_type == tool_type_enum]
         return EpisodeCollection(
             episodes=filtered,
-            description=f"Filtered: {tool_type.value}",
+            description=f"Filtered: {tool_type_enum.value}",
         )
 
     def get_fake_episodes(self) -> list[Episode]:

@@ -1,5 +1,25 @@
 # RunPod Deployment Guide: Step-by-Step
 
+## Quick Reference: Finding Connection Details
+
+**Where to find your Pod IP and Port:**
+
+1. Go to: https://runpod.io/console/pods
+2. Click on your running pod
+3. Look for **"SSH"** section - you'll see: `ssh root@X.X.X.X -p XXXXX`
+   - **POD_IP** = the IP address (X.X.X.X)
+   - **SSH_PORT** = the port number (XXXXX)
+4. Save these for easy reuse: `./scripts/save_pod_connection.sh`
+
+**Common Ports:**
+- **SSH Port**: Random 5-digit number assigned by RunPod (e.g., 12345, 23456)
+- **Jupyter Port**: Internal port 8888 (mapped to external port by RunPod)
+- **Pod IP**: Changes if you stop/restart pod
+
+See **Part 2.3** for detailed instructions with screenshots.
+
+---
+
 ## Prerequisites
 
 - RunPod account (runpod.io)
@@ -76,11 +96,122 @@ For this project: **RTX 4090 or 3090 is perfect** (Mistral-7B in 8-bit needs ~8G
 
 ### 2.3 Get Connection Info
 
-Once running, click your pod and note:
+Once your pod is running, you need to find these connection details:
 
-- **SSH command:** `ssh root@X.X.X.X -p XXXXX`
-- **Jupyter URL:** Usually shown as "Connect" button
-- **Pod ID:** You'll need this
+#### Step-by-Step: Finding Your Connection Details
+
+1. **Go to RunPod Console**
+   - Navigate to: https://runpod.io/console/pods
+   - You should see your pod listed (status: "Running")
+
+2. **Click on Your Pod**
+   - Click the pod name/row to open pod details
+
+3. **Find Connection Information**
+   
+   You'll see several tabs/sections. Look for:
+
+   **A. SSH Connection Details**
+   - Look for a section labeled **"SSH"** or **"Connect"**
+   - You should see something like:
+     ```
+     ssh root@123.45.67.89 -p 12345
+     ```
+   - **POD_IP** = `123.45.67.89` (the IP address)
+   - **SSH_PORT** = `12345` (the port number after `-p`)
+   
+   **B. Jupyter Connection**
+   - Look for **"Connect"** button or **"Jupyter"** section
+   - May show a URL like: `https://12345-abc.runpod.net` or similar
+   - Or click **"Connect"** → **"Start Jupyter Lab"** button
+   
+   **C. Pod Details**
+   - **Pod ID**: Usually shown at the top (e.g., `abc123def456`)
+   - **Pod Name**: Your custom name or auto-generated name
+
+#### Visual Guide: What to Look For
+
+In the RunPod UI, you'll typically see:
+
+```
+┌─────────────────────────────────────────┐
+│ Pod: my-pod-name                       │
+│ Status: Running                        │
+│                                         │
+│ SSH:                                    │
+│   ssh root@123.45.67.89 -p 12345       │
+│                                         │
+│ Connect:                                │
+│   [Start Jupyter Lab] [Connect]        │
+│                                         │
+│ Pod ID: abc123def456                   │
+└─────────────────────────────────────────┘
+```
+
+#### Save These Values
+
+**Option A: Use the Helper Script (Recommended)**
+
+Save your connection details for easy reuse:
+
+```bash
+# On your Mac
+cd /Users/gadi/Personal/interpret
+./scripts/save_pod_connection.sh
+
+# Follow the prompts to enter:
+# - Pod IP address
+# - SSH Port
+# - Pod ID (optional)
+```
+
+This saves to `~/.runpod_connection` and you can use scripts without typing IP/port each time.
+
+**Option B: Manual Note**
+
+Create a note with:
+- **POD_IP**: `123.45.67.89` (example - use your actual IP)
+- **SSH_PORT**: `12345` (example - use your actual port)
+- **Pod ID**: `abc123def456` (for reference)
+
+**Quick Test:**
+```bash
+# From your Mac terminal, test SSH connection:
+ssh root@<POD_IP> -p <SSH_PORT>
+
+# Example:
+ssh root@123.45.67.89 -p 12345
+```
+
+If it works, you'll see the pod's terminal prompt.
+
+#### Alternative: Using RunPod CLI
+
+If you have RunPod CLI installed:
+```bash
+# List all pods
+runpod pod list
+
+# Get pod details (shows connection info)
+runpod pod get <POD_ID>
+```
+
+#### Common Issues
+
+**Can't find SSH details?**
+- Make sure SSH was enabled during pod creation (step 2.2)
+- Check if pod is fully started (wait 1-2 minutes)
+- Look in "Settings" or "Network" tab of pod details
+
+**Port number seems wrong?**
+- RunPod assigns random ports for security
+- The port is usually 5 digits (e.g., 12345, 23456)
+- It's different from the internal port 8888 (Jupyter uses 8888 internally, but RunPod maps it to a different external port)
+
+**Need to reconnect later?**
+- Pod IP and port stay the same while pod is running
+- If you stop/restart pod, ports may change
+- Always check pod details after restarting
 
 ---
 
@@ -129,6 +260,63 @@ cd action-grounding
 ls -la
 # Should see: src/, notebooks/, config.yaml, requirements.txt, etc.
 ```
+
+### 3.3a Set Up GitHub SSH Access (For Git Push)
+
+If you want to push changes from the pod to GitHub, you need to set up SSH keys:
+
+**Option A: Generate New SSH Key on Pod (Recommended)**
+
+```bash
+# On the pod, generate SSH key
+ssh-keygen -t ed25519 -C "your_email@example.com"
+# Press Enter to accept default location (~/.ssh/id_ed25519)
+# Press Enter twice for no passphrase (or set one if preferred)
+
+# Display the public key
+cat ~/.ssh/id_ed25519.pub
+# Copy the entire output (starts with ssh-ed25519...)
+```
+
+**Add Key to GitHub:**
+1. Go to GitHub.com → Settings → SSH and GPG keys
+2. Click "New SSH key"
+3. Paste the public key you copied
+4. Give it a title like "RunPod Pod"
+5. Click "Add SSH key"
+
+**Configure Git to Use SSH:**
+```bash
+# If you cloned with HTTPS, switch to SSH
+cd /workspace/action-grounding
+git remote set-url origin git@github.com:YOUR_USERNAME/action-grounding.git
+
+# Test SSH connection
+ssh -T git@github.com
+# Should see: "Hi YOUR_USERNAME! You've successfully authenticated..."
+
+# Now you can push
+git push
+```
+
+**Option B: Use HTTPS with Personal Access Token**
+
+If you prefer HTTPS (no SSH setup needed):
+
+```bash
+# Clone/configure with HTTPS
+git remote set-url origin https://github.com/YOUR_USERNAME/action-grounding.git
+
+# When pushing, use a Personal Access Token as password:
+# 1. Go to GitHub.com → Settings → Developer settings → Personal access tokens → Tokens (classic)
+# 2. Generate new token with 'repo' scope
+# 3. When git asks for password, paste the token (not your GitHub password)
+git push
+# Username: YOUR_USERNAME
+# Password: <paste token here>
+```
+
+**Note:** SSH keys persist across pod restarts if you're using a persistent volume at `/workspace` or `/root`. If the pod is ephemeral, you'll need to regenerate keys each time.
 
 ### 3.4 Set Up Python Environment
 
@@ -426,6 +614,55 @@ Downloading model... (hanging)
 - First download takes 5-10 minutes
 - Check: `ls ~/.cache/huggingface/hub/` to see progress
 
+**Issue: Git push fails - file too large**
+```
+remote: error: File notebooks/data/processed/activations.npy is 210.94 MB; 
+this exceeds GitHub's file size limit of 100.00 MB
+```
+
+**Fix:** Remove large data files from git (they shouldn't be version controlled):
+
+```bash
+# On the pod (or locally)
+cd /workspace/action-grounding
+
+# Remove the large file from git tracking (but keep it locally)
+git rm --cached notebooks/data/processed/activations.npy
+# Or if it's in data/processed/:
+git rm --cached data/processed/*.npy data/processed/*.npz
+
+# Make sure .gitignore has these patterns:
+# *.npy
+# *.npz
+# data/**/*.parquet
+# notebooks/data/**/*.npy
+
+# Commit the removal
+git add .gitignore
+git commit -m "Remove large data files from git tracking"
+
+# Now push should work
+git push
+```
+
+**Note:** Large data files (activations, processed datasets) should be:
+- Stored locally on the pod (in `/workspace` persistent volume)
+- Synced back to your Mac via `scp` or `rsync` (see Part 9)
+- **NOT** committed to git (use `.gitignore`)
+
+If you really need version control for large files, use Git LFS:
+```bash
+# Install git-lfs
+apt-get install -y git-lfs
+git lfs install
+
+# Track large files
+git lfs track "*.npy"
+git lfs track "*.npz"
+git add .gitattributes
+git commit -m "Add Git LFS tracking for large files"
+```
+
 ---
 
 ## Part 7: Using tmux for Long Runs (Recommended)
@@ -514,47 +751,385 @@ tail -f logs/nb01.log
 
 ## Part 9: Syncing Results Back to Mac
 
-### 9.1 Using scp
-
+**Quick Start:**
 ```bash
-# From your Mac terminal (not SSH)
+# On your Mac, use the sync script:
 cd /Users/gadi/Personal/interpret
 
-# Copy all figures
-scp -P <PORT> root@<POD_IP>:/workspace/action-grounding/figures/* ./figures/
+# Option 1: If you saved connection details:
+./scripts/sync_from_pod.sh
 
-# Copy data files
-scp -P <PORT> root@<POD_IP>:/workspace/action-grounding/data/processed/*.parquet ./data/processed/
+# Option 2: Provide IP and port directly:
+./scripts/sync_from_pod.sh <POD_IP> <PORT>
+ssh root@69.30.85.120 -p 22130 -i ~/.ssh/id_ed25519
 
-# Copy trained probes
-scp -P <PORT> root@<POD_IP>:/workspace/action-grounding/data/processed/*.pkl ./data/processed/
+# Example:
+./scripts/sync_from_pod.sh 123.45.67.89 12345
 ```
 
-### 9.2 Using rsync (Better for Large Files)
+**First time?** Save your connection details:
+```bash
+./scripts/save_pod_connection.sh
+```
+
+**Nothing found to sync?** Check pod status:
+```bash
+./scripts/check_pod_status.sh <POD_IP> <PORT>
+```
+
+### 9.1 Quick Reference: What to Sync
+
+**Always sync:**
+- `figures/` - All generated plots and visualizations
+- `data/processed/*.parquet` - Processed episode datasets
+- `data/processed/*.pkl` - Trained probes and models
+- `notebooks/` - Updated notebooks with results
+- `logs/` - Experiment logs (optional)
+
+**Large files (sync selectively):**
+- `data/processed/*.npy` - Activation arrays (200+ MB each)
+- `data/processed/*.npz` - Compressed activations
+- `data/labeled/*.npz` - Labeled activation datasets
+
+**Don't sync (already in git or not needed):**
+- `venv/` - Virtual environment
+- `__pycache__/` - Python cache
+- `.env` - API keys (keep on pod only)
+
+### 9.2 Complete Sync Script (Recommended)
+
+Create a sync script on your Mac for easy syncing:
+
+**Create `scripts/sync_from_pod.sh`:**
+```bash
+#!/bin/bash
+# Sync everything from RunPod pod to local Mac
+# Usage: ./scripts/sync_from_pod.sh <POD_IP> <PORT>
+
+set -e
+
+POD_IP=${1:-"YOUR_POD_IP"}
+PORT=${2:-"YOUR_SSH_PORT"}
+
+if [ "$POD_IP" == "YOUR_POD_IP" ]; then
+    echo "Usage: $0 <POD_IP> <PORT>"
+    echo "Example: $0 123.45.67.89 12345"
+    exit 1
+fi
+
+REMOTE_PATH="/workspace/action-grounding"
+LOCAL_PATH="/Users/gadi/Personal/interpret"
+
+echo "=================================================="
+echo "Syncing from RunPod pod..."
+echo "Pod: root@${POD_IP}:${PORT}"
+echo "=================================================="
+
+# Create local directories if they don't exist
+mkdir -p "${LOCAL_PATH}/figures"
+mkdir -p "${LOCAL_PATH}/data/processed"
+mkdir -p "${LOCAL_PATH}/data/labeled"
+mkdir -p "${LOCAL_PATH}/notebooks"
+mkdir -p "${LOCAL_PATH}/logs"
+
+# Sync figures (usually small, fast)
+echo ""
+echo "[1/6] Syncing figures..."
+rsync -avz --progress -e "ssh -p ${PORT}" \
+  root@${POD_IP}:${REMOTE_PATH}/figures/ \
+  "${LOCAL_PATH}/figures/"
+
+# Sync processed data (parquet, pkl - moderate size)
+echo ""
+echo "[2/6] Syncing processed data (parquet, pkl)..."
+rsync -avz --progress -e "ssh -p ${PORT}" \
+  root@${POD_IP}:${REMOTE_PATH}/data/processed/*.parquet \
+  "${LOCAL_PATH}/data/processed/" 2>/dev/null || echo "  (No parquet files)"
+rsync -avz --progress -e "ssh -p ${PORT}" \
+  root@${POD_IP}:${REMOTE_PATH}/data/processed/*.pkl \
+  "${LOCAL_PATH}/data/processed/" 2>/dev/null || echo "  (No pkl files)"
+
+# Sync notebooks (to get any updated results/cells)
+echo ""
+echo "[3/6] Syncing notebooks..."
+rsync -avz --progress -e "ssh -p ${PORT}" \
+  root@${POD_IP}:${REMOTE_PATH}/notebooks/*.ipynb \
+  "${LOCAL_PATH}/notebooks/"
+
+# Sync logs (optional)
+echo ""
+echo "[4/6] Syncing logs..."
+rsync -avz --progress -e "ssh -p ${PORT}" \
+  root@${POD_IP}:${REMOTE_PATH}/logs/ \
+  "${LOCAL_PATH}/logs/" 2>/dev/null || echo "  (No logs directory)"
+
+# Ask about large files
+echo ""
+echo "[5/6] Large activation files (.npy, .npz)..."
+read -p "Sync large activation files? (y/N): " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    echo "  Syncing .npy files (this may take a while)..."
+    rsync -avz --progress -e "ssh -p ${PORT}" \
+      root@${POD_IP}:${REMOTE_PATH}/data/processed/*.npy \
+      "${LOCAL_PATH}/data/processed/" 2>/dev/null || echo "    (No .npy files)"
+    
+    echo "  Syncing .npz files..."
+    rsync -avz --progress -e "ssh -p ${PORT}" \
+      root@${POD_IP}:${REMOTE_PATH}/data/processed/*.npz \
+      "${LOCAL_PATH}/data/processed/" 2>/dev/null || echo "    (No .npz files)"
+    
+    rsync -avz --progress -e "ssh -p ${PORT}" \
+      root@${POD_IP}:${REMOTE_PATH}/data/labeled/*.npz \
+      "${LOCAL_PATH}/data/labeled/" 2>/dev/null || echo "    (No labeled .npz files)"
+else
+    echo "  Skipping large files (use manual sync if needed)"
+fi
+
+# Sync any other important files
+echo ""
+echo "[6/6] Syncing other files..."
+rsync -avz --progress -e "ssh -p ${PORT}" \
+  root@${POD_IP}:${REMOTE_PATH}/data/processed/*.json \
+  "${LOCAL_PATH}/data/processed/" 2>/dev/null || echo "  (No json files)"
+
+echo ""
+echo "=================================================="
+echo "✓ Sync complete!"
+echo "=================================================="
+echo ""
+echo "Synced to: ${LOCAL_PATH}"
+echo ""
+echo "To sync again, run:"
+echo "  ./scripts/sync_from_pod.sh ${POD_IP} ${PORT}"
+```
+
+**Make it executable:**
+```bash
+chmod +x scripts/sync_from_pod.sh
+```
+
+**Usage:**
+```bash
+# From your Mac
+cd /Users/gadi/Personal/interpret
+./scripts/sync_from_pod.sh <POD_IP> <PORT>
+
+# Example:
+./scripts/sync_from_pod.sh 123.45.67.89 12345
+```
+
+### 9.3 Manual Sync Commands
+
+If you prefer manual control, use these commands:
+
+**Using rsync (Recommended - faster, resumable):**
 
 ```bash
-# From Mac
-rsync -avz -e "ssh -p <PORT>" \
-  root@<POD_IP>:/workspace/action-grounding/figures/ \
+# From your Mac terminal
+cd /Users/gadi/Personal/interpret
+
+# Set these variables
+POD_IP="your_pod_ip"
+PORT="your_ssh_port"
+
+# Sync figures
+rsync -avz --progress -e "ssh -p ${PORT}" \
+  root@${POD_IP}:/workspace/action-grounding/figures/ \
   ./figures/
 
-rsync -avz -e "ssh -p <PORT>" \
-  root@<POD_IP>:/workspace/action-grounding/data/processed/ \
+# Sync processed data (parquet, pkl)
+rsync -avz --progress -e "ssh -p ${PORT}" \
+  root@${POD_IP}:/workspace/action-grounding/data/processed/ \
+  ./data/processed/
+
+# Sync notebooks
+rsync -avz --progress -e "ssh -p ${PORT}" \
+  root@${POD_IP}:/workspace/action-grounding/notebooks/*.ipynb \
+  ./notebooks/
+
+# Sync large activation files (optional - can be slow)
+rsync -avz --progress -e "ssh -p ${PORT}" \
+  root@${POD_IP}:/workspace/action-grounding/data/processed/*.npy \
   ./data/processed/
 ```
 
-### 9.3 Using Git (For Code Changes)
+**Using scp (Simpler, but slower for large files):**
+
+```bash
+# From your Mac terminal
+cd /Users/gadi/Personal/interpret
+
+POD_IP="your_pod_ip"
+PORT="your_ssh_port"
+
+# Copy figures
+scp -P ${PORT} -r root@${POD_IP}:/workspace/action-grounding/figures/* ./figures/
+
+# Copy processed data
+scp -P ${PORT} root@${POD_IP}:/workspace/action-grounding/data/processed/*.parquet ./data/processed/
+scp -P ${PORT} root@${POD_IP}:/workspace/action-grounding/data/processed/*.pkl ./data/processed/
+
+# Copy notebooks
+scp -P ${PORT} root@${POD_IP}:/workspace/action-grounding/notebooks/*.ipynb ./notebooks/
+```
+
+### 9.4 Selective Sync (Large Files Only)
+
+If you only need specific large files:
+
+```bash
+# Sync a specific activation file
+rsync -avz --progress -e "ssh -p ${PORT}" \
+  root@${POD_IP}:/workspace/action-grounding/data/processed/activations.npy \
+  ./data/processed/
+
+# Sync all labeled activations
+rsync -avz --progress -e "ssh -p ${PORT}" \
+  root@${POD_IP}:/workspace/action-grounding/data/labeled/ \
+  ./data/labeled/
+```
+
+### 9.5 Using Git (For Code Changes Only)
+
+**For code changes (not data files):**
 
 ```bash
 # On pod
 cd /workspace/action-grounding
-git add results/ figures/  # if you want to version these
-git commit -m "GPU run results"
+git add src/ notebooks/*.ipynb config.yaml  # code changes only
+git commit -m "Update notebooks with results"
 git push
 
 # On Mac
+cd /Users/gadi/Personal/interpret
 git pull
 ```
+
+**Note:** Don't commit large data files (.npy, .npz) - use rsync/scp instead.
+
+### 9.6 Verify Sync
+
+After syncing, verify files are present:
+
+```bash
+# On Mac
+cd /Users/gadi/Personal/interpret
+
+# Check figures
+ls -lh figures/
+# Should see: *.png, *.pdf files
+
+# Check processed data
+ls -lh data/processed/
+# Should see: *.parquet, *.pkl files
+
+# Check notebooks
+ls -lh notebooks/*.ipynb
+# Should see updated notebooks
+```
+
+### 9.7 Troubleshooting Sync
+
+**Issue: Connection timeout**
+```bash
+# Use rsync with keepalive
+rsync -avz --progress -e "ssh -p ${PORT} -o ServerAliveInterval=60" \
+  root@${POD_IP}:/workspace/action-grounding/figures/ \
+  ./figures/
+```
+
+**Issue: Permission denied**
+```bash
+# Make sure you're using the correct user (usually 'root' on RunPod)
+# Check: ssh root@${POD_IP} -p ${PORT}
+```
+
+**Issue: Large file transfer interrupted**
+```bash
+# rsync automatically resumes, but you can also use:
+rsync -avz --partial --progress -e "ssh -p ${PORT}" \
+  root@${POD_IP}:/workspace/action-grounding/data/processed/large_file.npy \
+  ./data/processed/
+# The --partial flag keeps partial transfers
+```
+
+**Issue: rsync command not found**
+```
+bash: line 1: rsync: command not found
+rsync: connection unexpectedly closed
+```
+
+**Fix:** The sync script will automatically fall back to `scp` if `rsync` isn't installed. To install `rsync` on the pod for better performance:
+
+```bash
+# SSH into pod
+ssh root@<POD_IP> -p <PORT>
+
+# Install rsync
+apt-get update
+apt-get install -y rsync
+```
+
+Or run the setup script which installs it automatically:
+```bash
+./scripts/setup_runpod.sh
+```
+
+The sync script will detect if rsync is available and use it, otherwise it falls back to scp.
+
+**Issue: Nothing found to sync (all directories/files missing)**
+
+If sync script shows "(No figures directory)", "(No parquet files)", etc.:
+
+1. **Check pod status first:**
+```bash
+# Diagnose what's on the pod
+./scripts/check_pod_status.sh <POD_IP> <PORT>
+```
+
+2. **Common causes:**
+
+   **A. Repository not cloned yet:**
+   ```bash
+   # SSH into pod
+   ssh root@<POD_IP> -p <PORT>
+   
+   # Clone repository
+   cd /workspace
+   git clone https://github.com/YOUR_USERNAME/action-grounding.git
+   cd action-grounding
+   
+   # Run setup
+   ./scripts/setup_runpod.sh
+   ```
+
+   **B. No work done yet:**
+   - This is normal if you just set up the pod
+   - Run notebooks first to generate data/figures
+   - Then sync will find files
+
+   **C. Wrong path:**
+   ```bash
+   # Check what's actually on the pod
+   ssh root@<POD_IP> -p <PORT>
+   ls -la /workspace/
+   # Verify the directory structure
+   ```
+
+   **D. Using SSH key:**
+   If you're using an SSH key (like `-i ~/.ssh/id_ed25519`), update the sync script:
+   ```bash
+   # Edit sync_from_pod.sh and add SSH key option
+   # Or use SSH config file (~/.ssh/config):
+   Host runpod
+       HostName <POD_IP>
+       Port <PORT>
+       User root
+       IdentityFile ~/.ssh/id_ed25519
+   
+   # Then use: ssh runpod
+   ```
 
 ---
 
