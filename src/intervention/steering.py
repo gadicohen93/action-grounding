@@ -4,9 +4,11 @@ Steering vector experiments.
 Implements steering by adding/subtracting probe directions during generation.
 """
 
+import json
 import logging
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import Optional, Union
 
 import numpy as np
 import torch
@@ -208,6 +210,7 @@ class SteeringExperiment:
         episodes: list[Episode],
         alphas: Optional[list[float]] = None,
         verbose: bool = True,
+        checkpoint_path: Optional[Union[str, Path]] = None,
     ) -> list[SteeringResult]:
         """
         Run steering experiments on a batch of episodes.
@@ -216,6 +219,8 @@ class SteeringExperiment:
             episodes: Episodes to test
             alphas: Steering strengths to test (from config if None)
             verbose: Show progress
+            checkpoint_path: Optional path to save/load checkpoint. If provided,
+                will save progress incrementally and resume from checkpoint if it exists.
 
         Returns:
             List of SteeringResult objects
@@ -225,16 +230,45 @@ class SteeringExperiment:
         if alphas is None:
             alphas = config.steering.alphas
 
+        # Load existing checkpoint if it exists
+        completed = set()
+        results = []
+        if checkpoint_path:
+            checkpoint_path = Path(checkpoint_path)
+            if checkpoint_path.exists():
+                logger.info(f"Loading checkpoint from: {checkpoint_path}")
+                results, completed = self._load_checkpoint(checkpoint_path)
+                logger.info(f"  Resuming: {len(results)}/{len(episodes) * len(alphas)} experiments completed")
+            else:
+                logger.info(f"No checkpoint found. Starting fresh. Will save to: {checkpoint_path}")
+
         logger.info(f"Running steering experiments:")
         logger.info(f"  Episodes: {len(episodes)}")
         logger.info(f"  Alphas: {alphas}")
+        if checkpoint_path:
+            logger.info(f"  Checkpoint: {checkpoint_path}")
 
-        results = []
+        # Create all experiment combinations
+        all_experiments = [(ep, alpha) for ep in episodes for alpha in alphas]
+        
+        # Filter out already completed experiments
+        remaining_experiments = [
+            (ep, alpha) for ep, alpha in all_experiments
+            if (ep.id, alpha) not in completed
+        ]
+
+        if not remaining_experiments:
+            logger.info("All experiments already completed!")
+            return results
+
+        logger.info(f"  Remaining: {len(remaining_experiments)}/{len(all_experiments)} experiments")
 
         iterator = tqdm(
-            [(ep, alpha) for ep in episodes for alpha in alphas],
+            remaining_experiments,
             desc="Steering",
             disable=not verbose,
+            initial=len(results),
+            total=len(all_experiments),
         )
 
         for episode, alpha in iterator:
@@ -242,11 +276,59 @@ class SteeringExperiment:
                 result = self.run_experiment(episode, alpha)
                 results.append(result)
 
+                # Save checkpoint after each experiment
+                if checkpoint_path:
+                    self._save_checkpoint(checkpoint_path, results, episodes, alphas)
+
             except Exception as e:
                 logger.error(f"Steering failed for episode {episode.id} at alpha={alpha}: {e}")
                 continue
 
+        logger.info(f"Completed {len(results)} steering experiments")
         return results
+
+    def _save_checkpoint(
+        self,
+        checkpoint_path: Path,
+        results: list[SteeringResult],
+        episodes: list[Episode],
+        alphas: list[float],
+    ) -> None:
+        """Save checkpoint to disk."""
+        checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Convert results to dict format
+        checkpoint_data = {
+            "results": [asdict(r) for r in results],
+            "episode_ids": [ep.id for ep in episodes],
+            "alphas": alphas,
+            "model_id": self.model_id,
+            "target_layer": self.target_layer,
+        }
+        
+        # Save to temporary file first, then rename (atomic write)
+        temp_path = checkpoint_path.with_suffix(checkpoint_path.suffix + ".tmp")
+        with open(temp_path, "w") as f:
+            json.dump(checkpoint_data, f, indent=2)
+        temp_path.replace(checkpoint_path)
+
+    def _load_checkpoint(
+        self,
+        checkpoint_path: Path,
+    ) -> tuple[list[SteeringResult], set[tuple[str, float]]]:
+        """Load checkpoint from disk."""
+        with open(checkpoint_path, "r") as f:
+            checkpoint_data = json.load(f)
+        
+        # Reconstruct results
+        results = [
+            SteeringResult(**r_dict) for r_dict in checkpoint_data["results"]
+        ]
+        
+        # Track completed experiments
+        completed = {(r.episode_id, r.alpha) for r in results}
+        
+        return results, completed
 
     def unload(self):
         """Unload model from memory."""
@@ -265,6 +347,7 @@ def run_steering_experiment(
     model_id: Optional[str] = None,
     target_layer: Optional[int] = None,
     verbose: bool = True,
+    checkpoint_path: Optional[Union[str, Path]] = None,
 ) -> list[SteeringResult]:
     """
     Run steering experiments (convenience function).
@@ -276,6 +359,8 @@ def run_steering_experiment(
         model_id: Model to use (from config if None)
         target_layer: Layer to apply steering at (from config if None)
         verbose: Show progress
+        checkpoint_path: Optional path to save/load checkpoint. If provided,
+            will save progress incrementally and resume from checkpoint if it exists.
 
     Returns:
         List of SteeringResult objects
@@ -287,7 +372,7 @@ def run_steering_experiment(
     )
 
     try:
-        results = experiment.run_batch(episodes, alphas, verbose)
+        results = experiment.run_batch(episodes, alphas, verbose, checkpoint_path)
     finally:
         experiment.unload()
 

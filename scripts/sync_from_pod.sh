@@ -122,6 +122,26 @@ else
     echo "  (No data/processed directory)"
 fi
 
+# Sync parquet files from notebooks/data/processed
+if ssh -p ${PORT} root@${POD_IP} "test -d ${REMOTE_PATH}/notebooks/data/processed" 2>/dev/null; then
+    mkdir -p "${LOCAL_PATH}/notebooks/data/processed"
+    NOTEBOOK_PARQUET_FILES=$(ssh -p ${PORT} root@${POD_IP} "find ${REMOTE_PATH}/notebooks/data/processed -maxdepth 1 -name '*.parquet' -type f 2>/dev/null" | wc -l)
+    if [ "$NOTEBOOK_PARQUET_FILES" -gt 0 ]; then
+        if [ "$USE_RSYNC" = true ]; then
+            rsync -avz --progress -e "ssh -p ${PORT}" \
+              root@${POD_IP}:${REMOTE_PATH}/notebooks/data/processed/*.parquet \
+              "${LOCAL_PATH}/notebooks/data/processed/" 2>/dev/null
+        else
+            ssh -p ${PORT} root@${POD_IP} "cd ${REMOTE_PATH}/notebooks/data/processed && ls *.parquet 2>/dev/null" | while read file; do
+                scp -P ${PORT} root@${POD_IP}:${REMOTE_PATH}/notebooks/data/processed/"$file" "${LOCAL_PATH}/notebooks/data/processed/" 2>/dev/null
+            done
+        fi
+        echo "  ✓ Notebook parquet files synced ($NOTEBOOK_PARQUET_FILES files)"
+    else
+        echo "  (No parquet files in notebooks/data/processed)"
+    fi
+fi
+
 # Sync notebooks (to get any updated results/cells)
 echo ""
 echo "[3/6] Syncing notebooks..."
